@@ -1,65 +1,98 @@
 # Multi Repo Git Commands
 
-Run a Git command across all repositories in your current VS Code workspace roots. Great for checking status, fetching, or pulling changes in many projects at once.
+Run Git commands across all repositories in your VS Code workspace. Perfect for managing multiple projects simultaneously - check status, fetch, pull, checkout branches, and more with a single click!
 
 ## Features
 
-- Runs a chosen Git command in each workspace folder that is a Git repository
-- Detects nested Git repositories inside workspace folders (configurable depth)
-- **Tree View UI** in the Activity Bar: see all discovered repos at a glance
-- **Quick Actions** on each repo: Status, Fetch, Pull, Custom command
-- **Toolbar buttons** to run commands on all repos
-- Presets for common actions: Status, Fetch, Pull
-- Custom command support: enter any git arguments (without the leading `git`)
-- Output Channel with per-repo logs and exit codes
-- Progress notification with cancellation
+✨ **Tree View UI** in the Activity Bar with all discovered repositories  
+🎯 **Quick Actions** on each repo: Status, Fetch, Pull, Checkout, Custom commands  
+🚀 **Toolbar buttons** to run commands on all repos at once  
+📦 **Nested Repository Discovery**: automatically finds Git repos in subdirectories  
+⚡ **Preset Commands**: Status, Fetch, Pull, Discard Changes, Checkout Branch  
+🔧 **Custom Command Support**: run any Git command you need  
+📊 **Output Channel** with detailed logs and exit codes  
+⚙️ **Configurable**: scan depth, excluded folders, and more
+
+## Quick Start
+
+1. Click the **Multi Repo Git** icon (layers icon) in the Activity Bar
+2. See all your repositories listed automatically
+3. Use inline buttons or toolbar actions to run Git commands
 
 ## Using the Tree View
 
-1. Click the **Multi Repo Git** icon in the Activity Bar (left sidebar).
-2. The "Repositories" view lists all discovered Git repositories.
-3. Use the inline action buttons on each repo:
-   - **Info** icon: Status
-   - **Cloud** icon: Fetch
-   - **Pull** icon: Pull (rebase)
-   - **Terminal** icon: Run custom command
-4. Use the toolbar at the top to run commands on **all** repos:
-   - Refresh icon: Reload the repository list
-   - Status All / Fetch All / Pull All / Run Command
+### Inline Actions (per repository)
+- **ℹ️ Status**: Check repository status
+- **☁️ Fetch**: Fetch latest changes
+- **⬇️ Pull**: Pull with rebase
+- **⌨️ Custom**: Run any Git command
+- **🌿 Checkout**: Switch to a different branch
+- **🗑️ Discard**: Discard all uncommitted changes (dangerous!)
+
+### Toolbar Actions (all repositories)
+- **🔄 Refresh**: Reload repository list
+- **Status All** / **Fetch All** / **Pull All** / **Checkout All** / **Discard All**
+- **Run Command**: Choose from presets or enter custom Git arguments
 
 ## Commands
 
-- Multi-Repo Git: Run Command
-- Multi-Repo Git: Run Custom…
-- Multi-Repo Git: Status All
-- Multi-Repo Git: Fetch All
-- Multi-Repo Git: Pull All (rebase)
+Available from the Command Palette:
 
-Open the Command Palette and type the command name to run it. Output appears in the "Multi Repo Git" output channel.
+- `Multi-Repo Git: Run Command` - Choose from presets or enter custom
+- `Multi-Repo Git: Status All` - Check status on all repos
+- `Multi-Repo Git: Fetch All` - Fetch from all remotes
+- `Multi-Repo Git: Pull All (rebase)` - Pull with rebase on all repos
+- `Multi-Repo Git: Checkout Branch (All)` - Switch branch on all repos
+- `Multi-Repo Git: Discard All Changes` - Reset and clean all repos (⚠️ dangerous!)
+- `Multi-Repo Git: Refresh Repositories` - Reload the repository list
+
+## Settings
+
+Configure under **Settings → Extensions → Multi Repo Git Commands**:
+
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| `multiRepoGit.scanNested` | boolean | `true` | Scan workspace folders recursively for nested repositories |
+| `multiRepoGit.maxDepth` | number | `2` | Maximum directory depth to scan (0 = root only, 1 = one level deep, etc.) |
+| `multiRepoGit.excludeFolders` | array | `["node_modules", ".git", "dist", "build", "out", ".next", ".cache"]` | Folder names to skip during scanning |
 
 ## Requirements
 
-- Git must be installed and available on your PATH.
-- The command runs only on workspace root folders that are Git repositories.
+- Git must be installed and available in your PATH
+- Works with both single and multi-root workspaces
 
-## Notes
+## How It Works
 
-- Commands execute sequentially to keep logs readable and avoid overwhelming remotes.
-- Folders that are not Git repositories are skipped with a note in the output.
-- You can configure nested repo discovery under Settings → Extensions → Multi Repo Git Commands.
+The extension:
+1. Scans all workspace folders for Git repositories
+2. Optionally discovers nested repositories based on your settings
+3. Displays them in a convenient tree view
+4. Executes Git commands sequentially with detailed output
+5. Shows progress notifications with cancellation support
 
-### Settings
+## Use Cases
 
-- `multiRepoGit.scanNested` (boolean, default true): Scans for `.git` in subfolders.
-- `multiRepoGit.maxDepth` (number, default 2): Depth for scanning subfolders (0 = solo la root, 1 = un livello, ecc.).
-- `multiRepoGit.excludeFolders` (string[], default common build/cache dirs): Folder names to skip during scanning.
+Perfect for:
+- 🏢 **Monorepos** with multiple projects
+- 📁 **Multi-root workspaces** with scattered repositories  
+- 🔄 **Synchronized operations**: fetch/pull all projects before starting work
+- 🌿 **Branch management**: checkout the same branch across all repos
+- 🧹 **Cleanup**: discard changes or reset all repos to clean state
 
-## Known limitations
+## Known Limitations
 
-- Only workspace roots are considered; nested repositories inside a single root are not discovered automatically yet.
+- Commands run sequentially (not in parallel) to keep output readable
+- Some Git operations may require user interaction in the terminal
 
 ## Release Notes
 
 ### 0.0.1
 
-- Initial preview: presets, custom command, output channel, progress.
+Initial release with:
+- Tree view UI in Activity Bar
+- Nested repository discovery with configurable depth
+- Preset commands: Status, Fetch, Pull, Checkout, Discard
+- Custom command support
+- Per-repo and all-repos actions
+- Output channel with detailed logs
+- Progress notifications with cancellation
