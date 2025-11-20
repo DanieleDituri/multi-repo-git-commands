@@ -184,7 +184,7 @@ export function activate(context: vscode.ExtensionContext) {
 			}
 		});
 
-		// treeProvider.refresh();
+		treeProvider.refresh();
 	}
 
 	// --- Command Implementations ---

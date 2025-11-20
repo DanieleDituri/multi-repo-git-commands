@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
 import { simpleGit, SimpleGit, SimpleGitOptions } from 'simple-git';
-export type RepoInfo = { name: string; path: string; };
+import { RepoTreeProvider, type RepoInfo } from './repoTreeProvider';
 
 type GitPick = {
 	label: string;
@@ -184,7 +184,7 @@ export function activate(context: vscode.ExtensionContext) {
 			}
 		});
 
-		// treeProvider.refresh();
+		treeProvider.refresh();
 	}
 
 	// --- Command Implementations ---

@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
 import { simpleGit, SimpleGit, SimpleGitOptions } from 'simple-git';
-export type RepoInfo = { name: string; path: string; };
+import { RepoTreeProvider, type RepoInfo } from './repoTreeProvider';
 
 type GitPick = {
 	label: string;
@@ -144,8 +144,20 @@ export function activate(context: vscode.ExtensionContext) {
 		return Array.from(repoPaths).map(p => ({ name: path.basename(p), path: p })).sort((a, b) => a.name.localeCompare(b.name));
 	}
 
-	// Tree View removed
+	const treeProvider = new RepoTreeProvider(getAllRepos);
+	vscode.window.createTreeView('multiRepoGitView', {
+		treeDataProvider: treeProvider,
+		showCollapseAll: false
+	});
 
+	context.subscriptions.push(
+		vscode.workspace.onDidChangeWorkspaceFolders(() => treeProvider.refresh()),
+		vscode.workspace.onDidChangeConfiguration(e => {
+			if (e.affectsConfiguration('multiRepoGit')) {
+				treeProvider.refresh();
+			}
+		})
+	);
 
 	async function runGitOperation(
 		operationName: string,
@@ -184,7 +196,7 @@ export function activate(context: vscode.ExtensionContext) {
 			}
 		});
 
-		// treeProvider.refresh();
+		treeProvider.refresh();
 	}
 
 	// --- Command Implementations ---

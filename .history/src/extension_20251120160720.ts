@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
 import { simpleGit, SimpleGit, SimpleGitOptions } from 'simple-git';
-export type RepoInfo = { name: string; path: string; };
+import { RepoTreeProvider, type RepoInfo } from './repoTreeProvider';
 
 type GitPick = {
 	label: string;
@@ -144,8 +144,20 @@ export function activate(context: vscode.ExtensionContext) {
 		return Array.from(repoPaths).map(p => ({ name: path.basename(p), path: p })).sort((a, b) => a.name.localeCompare(b.name));
 	}
 
-	// Tree View removed
+	const treeProvider = new RepoTreeProvider(getAllRepos);
+	vscode.window.createTreeView('multiRepoGitView', {
+		treeDataProvider: treeProvider,
+		showCollapseAll: false
+	});
 
+	context.subscriptions.push(
+		vscode.workspace.onDidChangeWorkspaceFolders(() => treeProvider.refresh()),
+		vscode.workspace.onDidChangeConfiguration(e => {
+			if (e.affectsConfiguration('multiRepoGit')) {
+				treeProvider.refresh();
+			}
+		})
+	);
 
 	async function runGitOperation(
 		operationName: string,
@@ -160,8 +172,7 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 
 		output.clear();
-		output.clear();
-		// output.show(true); // Keep background execution
+		output.show(true);
 
 		await vscode.window.withProgress({
 			location: vscode.ProgressLocation.Notification,
@@ -184,7 +195,7 @@ export function activate(context: vscode.ExtensionContext) {
 			}
 		});
 
-		// treeProvider.refresh();
+		treeProvider.refresh();
 	}
 
 	// --- Command Implementations ---
@@ -308,18 +319,8 @@ export function activate(context: vscode.ExtensionContext) {
 			await Promise.all(targetRepos!.map(async (repo) => {
 				try {
 					const git = simpleGit(repo.path);
-					const branches = await git.branch(['-a']); // Fetch all branches including remotes
-					branches.all.forEach(b => {
-						let name = b;
-						if (name.startsWith('remotes/')) {
-							// Strip 'remotes/origin/' or similar
-							const parts = name.split('/');
-							if (parts.length > 2) {
-								name = parts.slice(2).join('/');
-							}
-						}
-						allBranches.add(name);
-					});
+					const branches = await git.branchLocal();
+					branches.all.forEach(b => allBranches.add(b));
 				} catch {
 					// ignore
 				}
@@ -417,25 +418,27 @@ export function activate(context: vscode.ExtensionContext) {
 		vscode.commands.registerCommand('multi-repo-git-commands.createTagAll', () => runCreateTag()),
 		vscode.commands.registerCommand('multi-repo-git-commands.deleteTagAll', () => runDeleteTag()),
 		vscode.commands.registerCommand('multi-repo-git-commands.createRemoteAll', () => runCreateRemote()),
-		vscode.commands.registerCommand('multi-repo-git-commands.deleteRemoteAll', () => runDeleteRemote())
+		vscode.commands.registerCommand('multi-repo-git-commands.deleteRemoteAll', () => runDeleteRemote()),
+		vscode.commands.registerCommand('multi-repo-git-commands.refreshTree', () => treeProvider.refresh())
 	);
 
-	// Single Repo (SCM Context Menu)
-	const singleRepoWrapper = (fn: (repos?: RepoInfo[]) => Promise<void>) => async (item: vscode.SourceControl) => {
-		if (item && item.rootUri) {
-			const repo: RepoInfo = {
-				name: path.basename(item.rootUri.fsPath),
-				path: item.rootUri.fsPath
-			};
-			await fn([repo]);
-		}
+	// Single Repo (Context Menu)
+	const singleRepoWrapper = (fn: (repos?: RepoInfo[]) => Promise<void>) => (item: any) => {
+		const repo = item?.repo || item;
+		if (repo?.path) fn([repo]);
 	};
 
 	context.subscriptions.push(
+		vscode.commands.registerCommand('multi-repo-git-commands.statusRepo', singleRepoWrapper(runStatus)),
+		vscode.commands.registerCommand('multi-repo-git-commands.fetchRepo', singleRepoWrapper(runFetch)),
+		vscode.commands.registerCommand('multi-repo-git-commands.pullRepo', singleRepoWrapper(runPull)),
 		vscode.commands.registerCommand('multi-repo-git-commands.customRepo', singleRepoWrapper(runCustom)),
-		vscode.commands.registerCommand('multi-repo-git-commands.openRepo', async (item: vscode.SourceControl) => {
-			if (item && item.rootUri) {
-				await vscode.commands.executeCommand('vscode.openFolder', item.rootUri, { forceNewWindow: false, noRecentEntry: false });
+		vscode.commands.registerCommand('multi-repo-git-commands.discardRepo', singleRepoWrapper(runDiscard)),
+		vscode.commands.registerCommand('multi-repo-git-commands.checkoutRepo', singleRepoWrapper(runCheckout)),
+		vscode.commands.registerCommand('multi-repo-git-commands.openRepo', async (item: any) => {
+			const repo = item?.repo || item;
+			if (repo?.path) {
+				await vscode.commands.executeCommand('vscode.openFolder', vscode.Uri.file(repo.path), { forceNewWindow: false, noRecentEntry: false });
 			}
 		})
 	);

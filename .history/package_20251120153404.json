@@ -2,7 +2,7 @@
   "name": "multi-repo-git-commands",
   "displayName": "Multi Repo Git Commands",
   "description": "This extension lets you run Git commands across all repositories opened in your current workspace. It provides a simple and consistent way to execute operations such as pull, commit, or push simultaneously on multiple projects, saving time and reducing repetitive manual work.",
-  "version": "0.1.0",
+  "version": "0.0.1",
   "publisher": "DanieleDituri",
   "license": "MIT",
   "repository": {
@@ -15,7 +15,7 @@
   "homepage": "https://github.com/DanieleDituri/multi-repo-git-commands#readme",
   "icon": "images/icon.png",
   "engines": {
-    "vscode": "^1.90.0"
+    "vscode": "^1.105.0"
   },
   "categories": [
     "SCM Providers",
@@ -30,6 +30,24 @@
   ],
   "main": "./dist/extension.js",
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "multiRepoGit",
+          "title": "Multi Repo Git",
+          "icon": "$(layers)"
+        }
+      ]
+    },
+    "views": {
+      "multiRepoGit": [
+        {
+          "id": "multiRepoGitView",
+          "name": "Repositories",
+          "icon": "$(repo)"
+        }
+      ]
+    },
     "configuration": {
       "title": "Multi Repo Git Commands",
       "properties": {
@@ -77,44 +95,17 @@
       {
         "command": "multi-repo-git-commands.statusAll",
         "title": "Multi-Repo Git: Status All",
-        "category": "Git (Multi-Repo)",
-        "icon": "$(info)"
+        "category": "Git (Multi-Repo)"
       },
       {
         "command": "multi-repo-git-commands.fetchAll",
         "title": "Multi-Repo Git: Fetch All",
-        "category": "Git (Multi-Repo)",
-        "icon": "$(repo-sync)"
+        "category": "Git (Multi-Repo)"
       },
       {
         "command": "multi-repo-git-commands.pullAll",
         "title": "Multi-Repo Git: Pull All (rebase)",
-        "category": "Git (Multi-Repo)",
-        "icon": "$(repo-pull)"
-      },
-      {
-        "command": "multi-repo-git-commands.pushAll",
-        "title": "Multi-Repo Git: Push All",
-        "category": "Git (Multi-Repo)",
-        "icon": "$(repo-push)"
-      },
-      {
-        "command": "multi-repo-git-commands.commitAll",
-        "title": "Multi-Repo Git: Commit All",
-        "category": "Git (Multi-Repo)",
-        "icon": "$(git-commit)"
-      },
-      {
-        "command": "multi-repo-git-commands.stageAll",
-        "title": "Multi-Repo Git: Stage All Changes",
-        "category": "Git (Multi-Repo)",
-        "icon": "$(diff-insert)"
-      },
-      {
-        "command": "multi-repo-git-commands.unstageAll",
-        "title": "Multi-Repo Git: Unstage All Changes",
-        "category": "Git (Multi-Repo)",
-        "icon": "$(diff-remove)"
+        "category": "Git (Multi-Repo)"
       },
       {
         "command": "multi-repo-git-commands.discardAll",
@@ -123,58 +114,10 @@
         "icon": "$(discard)"
       },
       {
-        "command": "multi-repo-git-commands.stashAll",
-        "title": "Multi-Repo Git: Stash All Changes",
-        "category": "Git (Multi-Repo)",
-        "icon": "$(archive)"
-      },
-      {
-        "command": "multi-repo-git-commands.popStashAll",
-        "title": "Multi-Repo Git: Pop Stash All",
-        "category": "Git (Multi-Repo)",
-        "icon": "$(run-all)"
-      },
-      {
         "command": "multi-repo-git-commands.checkoutAll",
         "title": "Multi-Repo Git: Checkout Branch (All)",
         "category": "Git (Multi-Repo)",
         "icon": "$(git-branch)"
-      },
-      {
-        "command": "multi-repo-git-commands.createBranchAll",
-        "title": "Multi-Repo Git: Create Branch (All)",
-        "category": "Git (Multi-Repo)",
-        "icon": "$(git-branch-create)"
-      },
-      {
-        "command": "multi-repo-git-commands.deleteBranchAll",
-        "title": "Multi-Repo Git: Delete Branch (All)",
-        "category": "Git (Multi-Repo)",
-        "icon": "$(git-branch-delete)"
-      },
-      {
-        "command": "multi-repo-git-commands.createTagAll",
-        "title": "Multi-Repo Git: Create Tag (All)",
-        "category": "Git (Multi-Repo)",
-        "icon": "$(tag-add)"
-      },
-      {
-        "command": "multi-repo-git-commands.deleteTagAll",
-        "title": "Multi-Repo Git: Delete Tag (All)",
-        "category": "Git (Multi-Repo)",
-        "icon": "$(tag-remove)"
-      },
-      {
-        "command": "multi-repo-git-commands.createRemoteAll",
-        "title": "Multi-Repo Git: Create Remote (All)",
-        "category": "Git (Multi-Repo)",
-        "icon": "$(remote)"
-      },
-      {
-        "command": "multi-repo-git-commands.deleteRemoteAll",
-        "title": "Multi-Repo Git: Delete Remote (All)",
-        "category": "Git (Multi-Repo)",
-        "icon": "$(remote)"
       },
       {
         "command": "multi-repo-git-commands.openRepo",
@@ -217,149 +160,87 @@
         "title": "Checkout Branch…",
         "category": "Git (Multi-Repo)",
         "icon": "$(git-branch)"
-      }
-    ],
-    "submenus": [
-      {
-        "id": "mrg:commit",
-        "label": "Commit"
       },
       {
-        "id": "mrg:pull-push",
-        "label": "Pull, Push"
-      },
-      {
-        "id": "mrg:stash",
-        "label": "Stash"
-      },
-      {
-        "id": "mrg:branches",
-        "label": "Branch"
-      },
-      {
-        "id": "mrg:tags",
-        "label": "Tag"
-      },
-      {
-        "id": "mrg:changes",
-        "label": "Changes"
-      },
-      {
-        "id": "mrg:remotes",
-        "label": "Remote"
+        "command": "multi-repo-git-commands.refreshTree",
+        "title": "Refresh Repositories",
+        "category": "Git (Multi-Repo)",
+        "icon": "$(refresh)"
       }
     ],
     "menus": {
-      "mrg:commit": [
+      "view/title": [
         {
-          "command": "multi-repo-git-commands.commitAll"
-        }
-      ],
-      "mrg:pull-push": [
-        {
-          "command": "multi-repo-git-commands.pullAll"
+          "command": "multi-repo-git-commands.refreshTree",
+          "when": "view == multiRepoGitView",
+          "group": "navigation"
         },
-        {
-          "command": "multi-repo-git-commands.pushAll"
-        }
-      ],
-      "mrg:stash": [
-        {
-          "command": "multi-repo-git-commands.stashAll"
-        },
-        {
-          "command": "multi-repo-git-commands.popStashAll"
-        }
-      ],
-      "mrg:branches": [
-        {
-          "command": "multi-repo-git-commands.createBranchAll"
-        },
-        {
-          "command": "multi-repo-git-commands.deleteBranchAll"
-        },
-        {
-          "command": "multi-repo-git-commands.checkoutAll"
-        }
-      ],
-      "mrg:tags": [
-        {
-          "command": "multi-repo-git-commands.createTagAll"
-        },
-        {
-          "command": "multi-repo-git-commands.deleteTagAll"
-        }
-      ],
-      "mrg:changes": [
-        {
-          "command": "multi-repo-git-commands.discardAll"
-        },
-        {
-          "command": "multi-repo-git-commands.stageAll"
-        },
-        {
-          "command": "multi-repo-git-commands.unstageAll"
-        }
-      ],
-      "mrg:remotes": [
-        {
-          "command": "multi-repo-git-commands.createRemoteAll"
-        },
-        {
-          "command": "multi-repo-git-commands.deleteRemoteAll"
-        }
-      ],
-      "scm/title": [
         {
           "command": "multi-repo-git-commands.statusAll",
-          "group": "navigation"
+          "when": "view == multiRepoGitView",
+          "group": "1_actions@1"
         },
         {
           "command": "multi-repo-git-commands.fetchAll",
-          "group": "navigation"
+          "when": "view == multiRepoGitView",
+          "group": "1_actions@2"
         },
         {
           "command": "multi-repo-git-commands.pullAll",
-          "group": "navigation"
+          "when": "view == multiRepoGitView",
+          "group": "1_actions@3"
         },
         {
-          "command": "multi-repo-git-commands.pushAll",
-          "group": "navigation"
+          "command": "multi-repo-git-commands.discardAll",
+          "when": "view == multiRepoGitView",
+          "group": "1_actions@4"
         },
         {
           "command": "multi-repo-git-commands.checkoutAll",
-          "group": "navigation"
+          "when": "view == multiRepoGitView",
+          "group": "1_actions@5"
         },
         {
-          "submenu": "mrg:commit"
-        },
-        {
-          "submenu": "mrg:pull-push"
-        },
-        {
-          "submenu": "mrg:stash"
-        },
-        {
-          "submenu": "mrg:branches"
-        },
-        {
-          "submenu": "mrg:tags"
-        },
-        {
-          "submenu": "mrg:changes"
-        },
-        {
-          "submenu": "mrg:remotes"
+          "command": "multi-repo-git-commands.runGitAll",
+          "when": "view == multiRepoGitView",
+          "group": "2_custom@1"
         }
       ],
-      "scm/sourceControl/context": [
+      "view/item/context": [
+        {
+          "command": "multi-repo-git-commands.statusRepo",
+          "when": "view == multiRepoGitView && viewItem == gitRepo",
+          "group": "inline@1"
+        },
+        {
+          "command": "multi-repo-git-commands.fetchRepo",
+          "when": "view == multiRepoGitView && viewItem == gitRepo",
+          "group": "inline@2"
+        },
+        {
+          "command": "multi-repo-git-commands.pullRepo",
+          "when": "view == multiRepoGitView && viewItem == gitRepo",
+          "group": "inline@3"
+        },
         {
           "command": "multi-repo-git-commands.customRepo",
-          "group": "inline"
+          "when": "view == multiRepoGitView && viewItem == gitRepo",
+          "group": "inline@4"
+        },
+        {
+          "command": "multi-repo-git-commands.discardRepo",
+          "when": "view == multiRepoGitView && viewItem == gitRepo",
+          "group": "danger@1"
+        },
+        {
+          "command": "multi-repo-git-commands.checkoutRepo",
+          "when": "view == multiRepoGitView && viewItem == gitRepo",
+          "group": "navigation@2"
         },
         {
           "command": "multi-repo-git-commands.openRepo",
-          "group": "navigation"
+          "when": "view == multiRepoGitView && viewItem == gitRepo",
+          "group": "navigation@1"
         }
       ],
       "commandPalette": [
@@ -379,46 +260,13 @@
           "command": "multi-repo-git-commands.pullAll"
         },
         {
-          "command": "multi-repo-git-commands.pushAll"
-        },
-        {
-          "command": "multi-repo-git-commands.commitAll"
-        },
-        {
-          "command": "multi-repo-git-commands.stageAll"
-        },
-        {
-          "command": "multi-repo-git-commands.unstageAll"
-        },
-        {
-          "command": "multi-repo-git-commands.stashAll"
-        },
-        {
-          "command": "multi-repo-git-commands.popStashAll"
-        },
-        {
           "command": "multi-repo-git-commands.discardAll"
         },
         {
           "command": "multi-repo-git-commands.checkoutAll"
         },
         {
-          "command": "multi-repo-git-commands.createBranchAll"
-        },
-        {
-          "command": "multi-repo-git-commands.deleteBranchAll"
-        },
-        {
-          "command": "multi-repo-git-commands.createTagAll"
-        },
-        {
-          "command": "multi-repo-git-commands.deleteTagAll"
-        },
-        {
-          "command": "multi-repo-git-commands.createRemoteAll"
-        },
-        {
-          "command": "multi-repo-git-commands.deleteRemoteAll"
+          "command": "multi-repo-git-commands.refreshTree"
         },
         {
           "command": "multi-repo-git-commands.openRepo",
@@ -468,7 +316,7 @@
   "devDependencies": {
     "@types/mocha": "^10.0.10",
     "@types/node": "22.x",
-    "@types/vscode": "^1.90.0",
+    "@types/vscode": "^1.105.0",
     "@typescript-eslint/eslint-plugin": "^8.45.0",
     "@typescript-eslint/parser": "^8.45.0",
     "@vscode/test-cli": "^0.0.11",
@@ -478,8 +326,5 @@
     "eslint": "^9.36.0",
     "npm-run-all": "^4.1.5",
     "typescript": "^5.9.3"
-  },
-  "dependencies": {
-    "simple-git": "^3.30.0"
   }
 }

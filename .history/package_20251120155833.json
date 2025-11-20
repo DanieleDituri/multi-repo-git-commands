@@ -2,7 +2,7 @@
   "name": "multi-repo-git-commands",
   "displayName": "Multi Repo Git Commands",
   "description": "This extension lets you run Git commands across all repositories opened in your current workspace. It provides a simple and consistent way to execute operations such as pull, commit, or push simultaneously on multiple projects, saving time and reducing repetitive manual work.",
-  "version": "0.1.0",
+  "version": "0.0.1",
   "publisher": "DanieleDituri",
   "license": "MIT",
   "repository": {
@@ -30,6 +30,24 @@
   ],
   "main": "./dist/extension.js",
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "multiRepoGit",
+          "title": "Multi Repo Git",
+          "icon": "$(layers)"
+        }
+      ]
+    },
+    "views": {
+      "multiRepoGit": [
+        {
+          "id": "multiRepoGitView",
+          "name": "Repositories",
+          "icon": "$(repo)"
+        }
+      ]
+    },
     "configuration": {
       "title": "Multi Repo Git Commands",
       "properties": {
@@ -77,20 +95,17 @@
       {
         "command": "multi-repo-git-commands.statusAll",
         "title": "Multi-Repo Git: Status All",
-        "category": "Git (Multi-Repo)",
-        "icon": "$(info)"
+        "category": "Git (Multi-Repo)"
       },
       {
         "command": "multi-repo-git-commands.fetchAll",
         "title": "Multi-Repo Git: Fetch All",
-        "category": "Git (Multi-Repo)",
-        "icon": "$(repo-sync)"
+        "category": "Git (Multi-Repo)"
       },
       {
         "command": "multi-repo-git-commands.pullAll",
         "title": "Multi-Repo Git: Pull All (rebase)",
-        "category": "Git (Multi-Repo)",
-        "icon": "$(repo-pull)"
+        "category": "Git (Multi-Repo)"
       },
       {
         "command": "multi-repo-git-commands.pushAll",
@@ -217,6 +232,12 @@
         "title": "Checkout Branch…",
         "category": "Git (Multi-Repo)",
         "icon": "$(git-branch)"
+      },
+      {
+        "command": "multi-repo-git-commands.refreshTree",
+        "title": "Refresh Repositories",
+        "category": "Git (Multi-Repo)",
+        "icon": "$(refresh)"
       }
     ],
     "submenus": [
@@ -311,55 +332,125 @@
       ],
       "scm/title": [
         {
-          "command": "multi-repo-git-commands.statusAll",
+          "submenu": "mrg:commit",
           "group": "navigation"
+        },
+        {
+          "submenu": "mrg:pull-push",
+          "group": "navigation"
+        },
+        {
+          "submenu": "mrg:stash",
+          "group": "navigation"
+        },
+        {
+          "submenu": "mrg:branches",
+          "group": "navigation"
+        },
+        {
+          "submenu": "mrg:tags",
+          "group": "navigation"
+        },
+        {
+          "submenu": "mrg:changes",
+          "group": "navigation"
+        },
+        {
+          "submenu": "mrg:remotes",
+          "group": "navigation"
+        },
+        {
+          "command": "multi-repo-git-commands.refreshTree",
+          "group": "navigation"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "multi-repo-git-commands.refreshTree",
+          "when": "view == multiRepoGitView",
+          "group": "navigation"
+        },
+        {
+          "command": "multi-repo-git-commands.statusAll",
+          "when": "view == multiRepoGitView",
+          "group": "1_actions@1"
         },
         {
           "command": "multi-repo-git-commands.fetchAll",
-          "group": "navigation"
+          "when": "view == multiRepoGitView",
+          "group": "1_actions@2"
         },
         {
           "command": "multi-repo-git-commands.pullAll",
-          "group": "navigation"
+          "when": "view == multiRepoGitView",
+          "group": "1_actions@3"
         },
         {
           "command": "multi-repo-git-commands.pushAll",
-          "group": "navigation"
+          "when": "view == multiRepoGitView",
+          "group": "1_actions@4"
+        },
+        {
+          "command": "multi-repo-git-commands.stageAll",
+          "when": "view == multiRepoGitView",
+          "group": "1_actions@5"
+        },
+        {
+          "command": "multi-repo-git-commands.commitAll",
+          "when": "view == multiRepoGitView",
+          "group": "1_actions@6"
+        },
+        {
+          "command": "multi-repo-git-commands.discardAll",
+          "when": "view == multiRepoGitView",
+          "group": "1_actions@7"
         },
         {
           "command": "multi-repo-git-commands.checkoutAll",
-          "group": "navigation"
+          "when": "view == multiRepoGitView",
+          "group": "1_actions@8"
         },
         {
-          "submenu": "mrg:commit"
-        },
-        {
-          "submenu": "mrg:pull-push"
-        },
-        {
-          "submenu": "mrg:stash"
-        },
-        {
-          "submenu": "mrg:branches"
-        },
-        {
-          "submenu": "mrg:tags"
-        },
-        {
-          "submenu": "mrg:changes"
-        },
-        {
-          "submenu": "mrg:remotes"
+          "command": "multi-repo-git-commands.runGitAll",
+          "when": "view == multiRepoGitView",
+          "group": "2_custom@1"
         }
       ],
-      "scm/sourceControl/context": [
+      "view/item/context": [
+        {
+          "command": "multi-repo-git-commands.statusRepo",
+          "when": "view == multiRepoGitView && viewItem == gitRepo",
+          "group": "inline@1"
+        },
+        {
+          "command": "multi-repo-git-commands.fetchRepo",
+          "when": "view == multiRepoGitView && viewItem == gitRepo",
+          "group": "inline@2"
+        },
+        {
+          "command": "multi-repo-git-commands.pullRepo",
+          "when": "view == multiRepoGitView && viewItem == gitRepo",
+          "group": "inline@3"
+        },
         {
           "command": "multi-repo-git-commands.customRepo",
-          "group": "inline"
+          "when": "view == multiRepoGitView && viewItem == gitRepo",
+          "group": "inline@4"
+        },
+        {
+          "command": "multi-repo-git-commands.discardRepo",
+          "when": "view == multiRepoGitView && viewItem == gitRepo",
+          "group": "danger@1"
+        },
+        {
+          "command": "multi-repo-git-commands.checkoutRepo",
+          "when": "view == multiRepoGitView && viewItem == gitRepo",
+          "group": "navigation@2"
         },
         {
           "command": "multi-repo-git-commands.openRepo",
-          "group": "navigation"
+          "when": "view == multiRepoGitView && viewItem == gitRepo",
+          "group": "navigation@1"
         }
       ],
       "commandPalette": [
@@ -419,6 +510,9 @@
         },
         {
           "command": "multi-repo-git-commands.deleteRemoteAll"
+        },
+        {
+          "command": "multi-repo-git-commands.refreshTree"
         },
         {
           "command": "multi-repo-git-commands.openRepo",
