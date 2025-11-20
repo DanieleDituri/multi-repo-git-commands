@@ -4,47 +4,43 @@ Run Git commands across all repositories in your VS Code workspace. Perfect for 
 
 ## Features
 
-✨ **Tree View UI** in the Activity Bar with all discovered repositories  
-🎯 **Quick Actions** on each repo: Status, Fetch, Pull, Checkout, Custom commands  
-🚀 **Toolbar buttons** to run commands on all repos at once  
-📦 **Nested Repository Discovery**: automatically finds Git repos in subdirectories  
-⚡ **Preset Commands**: Status, Fetch, Pull, Discard Changes, Checkout Branch  
-🔧 **Custom Command Support**: run any Git command you need  
-📊 **Output Channel** with detailed logs and exit codes  
-⚙️ **Configurable**: scan depth, excluded folders, and more
+✨ **Seamless SCM Integration**: Access commands directly from the Source Control view title and context menus  
+🎯 **Quick Actions**: Status, Fetch, Pull, Push, Checkout, Stash, Tags, Remotes  
+🚀 **Bulk Operations**: Run commands on all repositories at once  
+📦 **Nested Repository Discovery**: Automatically finds Git repos in subdirectories  
+⚡ **Background Execution**: Commands run silently with progress notifications  
+🔧 **Custom Command Support**: Run any Git command you need  
+🌿 **Enhanced Checkout**: View and select from all available branches (local and remote) across repos  
+⚙️ **Configurable**: Scan depth, excluded folders, and more
 
 ## Quick Start
 
-1. Click the **Multi Repo Git** icon (layers icon) in the Activity Bar
-2. See all your repositories listed automatically
-3. Use inline buttons or toolbar actions to run Git commands
-
-## Using the Tree View
-
-### Inline Actions (per repository)
-- **ℹ️ Status**: Check repository status
-- **☁️ Fetch**: Fetch latest changes
-- **⬇️ Pull**: Pull with rebase
-- **⌨️ Custom**: Run any Git command
-- **🌿 Checkout**: Switch to a different branch
-- **🗑️ Discard**: Discard all uncommitted changes (dangerous!)
-
-### Toolbar Actions (all repositories)
-- **🔄 Refresh**: Reload repository list
-- **Status All** / **Fetch All** / **Pull All** / **Checkout All** / **Discard All**
-- **Run Command**: Choose from presets or enter custom Git arguments
+1. Open the **Source Control** view in VS Code
+2. Use the **navigation bar icons** to run common commands (Status, Fetch, Pull, Push, Checkout) on all repositories
+3. Click the **... (More Actions)** menu for advanced commands (Commit, Stash, Branch, Tag, Remote, etc.)
+4. Right-click any repository in the list to run commands on that specific repo
 
 ## Commands
 
-Available from the Command Palette:
+Available from the Command Palette (`Cmd+Shift+P`) or Source Control menus:
 
-- `Multi-Repo Git: Run Command` - Choose from presets or enter custom
-- `Multi-Repo Git: Status All` - Check status on all repos
-- `Multi-Repo Git: Fetch All` - Fetch from all remotes
-- `Multi-Repo Git: Pull All (rebase)` - Pull with rebase on all repos
-- `Multi-Repo Git: Checkout Branch (All)` - Switch branch on all repos
-- `Multi-Repo Git: Discard All Changes` - Reset and clean all repos (⚠️ dangerous!)
-- `Multi-Repo Git: Refresh Repositories` - Reload the repository list
+### General (All Repositories)
+- **Status All**: Check status on all repos
+- **Fetch All**: Fetch from all remotes
+- **Pull All**: Pull with rebase on all repos
+- **Push All**: Push to remote
+- **Commit All**: Commit changes
+- **Stash All / Pop Stash All**: Manage stashes
+- **Checkout Branch (All)**: Switch branch (lists local and remote branches)
+- **Create/Delete Branch (All)**: Manage branches
+- **Create/Delete Tag (All)**: Manage tags
+- **Create/Delete Remote (All)**: Manage remotes
+- **Stage/Unstage/Discard All**: Manage changes
+- **Run Custom Command**: Enter any Git arguments
+
+### Single Repository
+- **Run Custom Command**: Run any Git command on a specific repo
+- **Open Repository**: Open the repository in a new window
 
 ## Settings
 
@@ -61,38 +57,15 @@ Configure under **Settings → Extensions → Multi Repo Git Commands**:
 - Git must be installed and available in your PATH
 - Works with both single and multi-root workspaces
 
-## How It Works
-
-The extension:
-1. Scans all workspace folders for Git repositories
-2. Optionally discovers nested repositories based on your settings
-3. Displays them in a convenient tree view
-4. Executes Git commands sequentially with detailed output
-5. Shows progress notifications with cancellation support
-
-## Use Cases
-
-Perfect for:
-- 🏢 **Monorepos** with multiple projects
-- 📁 **Multi-root workspaces** with scattered repositories  
-- 🔄 **Synchronized operations**: fetch/pull all projects before starting work
-- 🌿 **Branch management**: checkout the same branch across all repos
-- 🧹 **Cleanup**: discard changes or reset all repos to clean state
-
-## Known Limitations
-
-- Commands run sequentially (not in parallel) to keep output readable
-- Some Git operations may require user interaction in the terminal
-
 ## Release Notes
 
-### 0.0.1
+### 0.1.0
+- **Major UI Overhaul**: Integrated into Source Control view (removed custom Activity Bar view)
+- **New Commands**: Push, Commit, Stash, Tags, Remotes, Stage/Unstage
+- **Enhanced Checkout**: Now lists all branches (local & remote) for easier selection
+- **Background Execution**: Commands run silently without stealing focus
+- **Improved Performance**: Switched to `simple-git` for more robust Git handling
 
-Initial release with:
-- Tree view UI in Activity Bar
-- Nested repository discovery with configurable depth
-- Preset commands: Status, Fetch, Pull, Checkout, Discard
-- Custom command support
-- Per-repo and all-repos actions
-- Output channel with detailed logs
-- Progress notifications with cancellation
+### 0.0.1
+- Initial release
+
