@@ -1,46 +1,46 @@
 # Multi Repo Git Commands
 
-Run Git commands across all repositories in your VS Code workspace. Perfect for managing multiple projects simultaneously - check status, fetch, pull, checkout branches, and more with a single click!
+Run Git commands across all repositories in your VS Code workspace. Perfect for managing multiple projects simultaneously - check status, fetch, pull, checkout branches, search commits, and more from a dedicated dashboard!
 
 ## Features
 
-✨ **Seamless SCM Integration**: Access commands directly from the Source Control view title and context menus  
-🎯 **Quick Actions**: Status, Fetch, Pull, Push, Checkout, Stash, Tags, Remotes  
-🚀 **Bulk Operations**: Run commands on all repositories at once  
-📦 **Nested Repository Discovery**: Automatically finds Git repos in subdirectories  
-⚡ **Background Execution**: Commands run silently with progress notifications  
-🔧 **Custom Command Support**: Run any Git command you need  
-🌿 **Enhanced Checkout**: View and select from all available branches (local and remote) across repos  
-⚙️ **Configurable**: Scan depth, excluded folders, and more
+✨ **Dedicated Dashboard**: A clean, webview-based Side Bar view for all your multi-repo needs.  
+🚀 **Global Actions Toolbar**: One-click access to common operations across ALL repositories:
+  - Fetch, Pull, Push
+  - Commit, Switch Branch
+  - Stage All, Unstage All, Discard All
+  - Stash, Pop Stash
+🔍 **Advanced Branch Search**: 
+  - Search for branches across all repositories.
+  - View "Current" branch vs "Found" branches.
+  - Checkout branches directly from search results.
+  - Handles local and remote branches intelligently.
+📜 **Commit Search & Filtering**:
+  - Search for commits by message or hash.
+  - **Filters**: Filter by Author, Date Range, and Branch.
+  - **Rich Results**: View commit message, hash, author, date, and refs (tags/branches).
+⚡ **Real-time Updates**: The UI automatically updates when you change branches or modify repositories externally or via terminal.
+📦 **Nested Repository Discovery**: Automatically finds Git repos in subdirectories.
 
 ## Quick Start
 
-1. Open the **Source Control** view in VS Code
-2. Use the **navigation bar icons** to run common commands (Status, Fetch, Pull, Push, Checkout) on all repositories
-3. Click the **... (More Actions)** menu for advanced commands (Commit, Stash, Branch, Tag, Remote, etc.)
-4. Right-click any repository in the list to run commands on that specific repo
+1. Click the **Multi Repo Git** icon in the Activity Bar (the branch icon).
+2. Use the **Global Actions** toolbar to perform bulk operations.
+3. Use the **Search Branch** section to find and switch branches across repos.
+4. Use the **Search Commit** section to find specific commits, using the filter icon for advanced options.
 
 ## Commands
 
-Available from the Command Palette (`Cmd+Shift+P`) or Source Control menus:
+Available from the Command Palette (`Cmd+Shift+P`) or the Dashboard:
 
-### General (All Repositories)
-- **Status All**: Check status on all repos
 - **Fetch All**: Fetch from all remotes
 - **Pull All**: Pull with rebase on all repos
 - **Push All**: Push to remote
 - **Commit All**: Commit changes
-- **Stash All / Pop Stash All**: Manage stashes
-- **Checkout Branch (All)**: Switch branch (lists local and remote branches)
-- **Create/Delete Branch (All)**: Manage branches
-- **Create/Delete Tag (All)**: Manage tags
-- **Create/Delete Remote (All)**: Manage remotes
+- **Switch Branch**: Interactive picker to switch all repos to a specific branch
 - **Stage/Unstage/Discard All**: Manage changes
-- **Run Custom Command**: Enter any Git arguments
-
-### Single Repository
-- **Run Custom Command**: Run any Git command on a specific repo
-- **Open Repository**: Open the repository in a new window
+- **Stash/Pop Stash All**: Manage stashes
+- **Run Custom Command**: Enter any Git arguments to run on all repos
 
 ## Settings
 
@@ -59,13 +59,19 @@ Configure under **Settings → Extensions → Multi Repo Git Commands**:
 
 ## Release Notes
 
+### 1.0.0
+- **New Dashboard UI**: Dedicated Side Bar view with a modern Webview interface.
+- **Global Toolbar**: Quick access buttons for all major Git operations.
+- **Advanced Search**: 
+    - Branch search with checkout capabilities.
+    - Commit search with filters (Author, Date, Branch).
+- **Real-time Reactivity**: UI updates instantly when repository state changes.
+- **Improved UX**: Better visual feedback, icons, and expandable result lists.
+
 ### 0.1.0
-- **Major UI Overhaul**: Integrated into Source Control view (removed custom Activity Bar view)
-- **New Commands**: Push, Commit, Stash, Tags, Remotes, Stage/Unstage
-- **Enhanced Checkout**: Now lists all branches (local & remote) for easier selection
-- **Background Execution**: Commands run silently without stealing focus
-- **Improved Performance**: Switched to `simple-git` for more robust Git handling
+- Integrated into Source Control view.
+- Added basic bulk commands.
 
 ### 0.0.1
-- Initial release
+- Initial release.
 

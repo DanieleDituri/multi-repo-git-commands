@@ -1,7 +1,9 @@
 import * as vscode from 'vscode';
 import * as path from 'node:path';
-import * as fs from 'node:fs/promises';
-import { simpleGit, SimpleGit, SimpleGitOptions } from 'simple-git';
+import { simpleGit, SimpleGit } from 'simple-git';
+import { getAllGitRepos } from './repoDiscovery';
+import { MultiRepoViewProvider } from './multiRepoViewProvider';
+
 export type RepoInfo = { name: string; path: string; };
 
 type GitPick = {
@@ -23,72 +25,7 @@ function createOutput(): vscode.OutputChannel {
 	return vscode.window.createOutputChannel('Multi Repo Git');
 }
 
-async function isGitRepo(cwd: string): Promise<boolean> {
-	try {
-		const git = simpleGit(cwd);
-		return await git.checkIsRepo();
-	} catch {
-		return false;
-	}
-}
 
-async function hasDotGit(dir: string): Promise<boolean> {
-	try {
-		await fs.stat(path.join(dir, '.git'));
-		return true;
-	} catch {
-		return false;
-	}
-}
-
-function shouldSkipEntry(entry: import('node:fs').Dirent, excludeFolders: string[]): boolean {
-	if (!entry.isDirectory()) {
-		return true;
-	}
-	if (entry.name === '.' || entry.name === '..') {
-		return true;
-	}
-	if (excludeFolders.includes(entry.name)) {
-		return true;
-	}
-	return false;
-}
-
-async function discoverGitRepos(root: string, options: { maxDepth: number; excludeFolders: string[] }): Promise<string[]> {
-	const repos = new Set<string>();
-	type Item = { dir: string; depth: number };
-	const stack: Item[] = [{ dir: root, depth: 0 }];
-
-	while (stack.length > 0) {
-		const { dir, depth } = stack.pop()!;
-
-		if (await hasDotGit(dir)) {
-			repos.add(dir);
-			continue;
-		}
-
-		if (depth >= options.maxDepth) {
-			continue;
-		}
-
-		let entries: import('node:fs').Dirent[] = [];
-		try {
-			entries = await fs.readdir(dir, { withFileTypes: true });
-		} catch {
-			continue;
-		}
-
-		for (const entry of entries) {
-			if (shouldSkipEntry(entry, options.excludeFolders)) {
-				continue;
-			}
-			const child = path.join(dir, entry.name);
-			stack.push({ dir: child, depth: depth + 1 });
-		}
-	}
-
-	return Array.from(repos);
-}
 
 async function pickOrPromptGitArgs(): Promise<string[] | undefined> {
 	const choice = await vscode.window.showQuickPick([
@@ -115,33 +52,34 @@ async function pickOrPromptGitArgs(): Promise<string[] | undefined> {
 
 export function activate(context: vscode.ExtensionContext) {
 	const output = createOutput();
+	const provider = new MultiRepoViewProvider(context.extensionUri, output);
+
+	// --- Git Extension Integration for Real-time Updates ---
+	try {
+		const gitExtension = vscode.extensions.getExtension('vscode.git');
+		if (gitExtension) {
+			const gitApi = gitExtension.exports.getAPI(1);
+
+			const subscribeToRepo = (repo: any) => {
+				// Subscribe to state changes (branch changes, commits, etc.)
+				repo.state.onDidChange(() => {
+					provider.updateRepoState(repo.rootUri.fsPath);
+				});
+			};
+
+			// Subscribe to existing repos
+			gitApi.repositories.forEach(subscribeToRepo);
+
+			// Subscribe to new repos
+			gitApi.onDidOpenRepository(subscribeToRepo);
+		}
+	} catch (e) {
+		console.error('Failed to hook into VS Code Git extension:', e);
+	}
 
 	async function getAllRepos(): Promise<RepoInfo[]> {
-		const folders = vscode.workspace.workspaceFolders;
-		if (!folders || folders.length === 0) {
-			return [];
-		}
-
-		const config = vscode.workspace.getConfiguration('multiRepoGit');
-		const scanNested = config.get<boolean>('scanNested', true);
-		const maxDepth = Math.max(0, config.get<number>('maxDepth', 2));
-		const excludeFolders = config.get<string[]>('excludeFolders', ['node_modules', '.git', 'dist', 'build', 'out', '.next', '.cache']);
-
-		const repoPaths = new Set<string>();
-		for (const f of folders) {
-			const rootPath = f.uri.fsPath;
-			if (await isGitRepo(rootPath) || await hasDotGit(rootPath)) {
-				repoPaths.add(rootPath);
-			}
-			if (scanNested) {
-				const found = await discoverGitRepos(rootPath, { maxDepth, excludeFolders });
-				for (const p of found) {
-					repoPaths.add(p);
-				}
-			}
-		}
-
-		return Array.from(repoPaths).map(p => ({ name: path.basename(p), path: p })).sort((a, b) => a.name.localeCompare(b.name));
+		const repoPaths = await getAllGitRepos();
+		return repoPaths.map(p => ({ name: path.basename(p), path: p })).sort((a, b) => a.name.localeCompare(b.name));
 	}
 
 	// Tree View removed
@@ -438,6 +376,10 @@ export function activate(context: vscode.ExtensionContext) {
 				await vscode.commands.executeCommand('vscode.openFolder', item.rootUri, { forceNewWindow: false, noRecentEntry: false });
 			}
 		})
+	);
+
+	context.subscriptions.push(
+		vscode.window.registerWebviewViewProvider(MultiRepoViewProvider.viewType, provider)
 	);
 
 	context.subscriptions.push(output);
