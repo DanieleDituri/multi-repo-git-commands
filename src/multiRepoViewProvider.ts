@@ -1,248 +1,335 @@
-import * as vscode from 'vscode';
-import * as path from 'path';
-import { simpleGit } from 'simple-git';
-import { getAllGitRepos } from './repoDiscovery';
+import * as vscode from "vscode";
+import * as path from "path";
+import { simpleGit } from "simple-git";
+import { getAllGitRepos } from "./repoDiscovery";
 
 export class MultiRepoViewProvider implements vscode.WebviewViewProvider {
-    public static readonly viewType = 'multi-repo-git-view';
+  public static readonly viewType = "multi-repo-git-view";
 
-    private _view?: vscode.WebviewView;
+  private _view?: vscode.WebviewView;
 
-    constructor(
-        private readonly _extensionUri: vscode.Uri,
-        private readonly _output: vscode.OutputChannel
-    ) { }
+  constructor(
+    private readonly _extensionUri: vscode.Uri,
+    private readonly _output: vscode.OutputChannel,
+  ) {}
 
-    public resolveWebviewView(
-        webviewView: vscode.WebviewView,
-        context: vscode.WebviewViewResolveContext,
-        _token: vscode.CancellationToken,
-    ) {
-        this._view = webviewView;
+  public resolveWebviewView(
+    webviewView: vscode.WebviewView,
+    context: vscode.WebviewViewResolveContext,
+    _token: vscode.CancellationToken,
+  ) {
+    this._view = webviewView;
 
-        webviewView.webview.options = {
-            enableScripts: true,
-            localResourceRoots: [
-                this._extensionUri
-            ]
-        };
+    webviewView.webview.options = {
+      enableScripts: true,
+      localResourceRoots: [this._extensionUri],
+    };
 
-        webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
+    webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
 
-        webviewView.webview.onDidReceiveMessage(async (data) => {
-            switch (data.type) {
-                case 'searchBranch':
-                    await this._searchBranch(data.value);
-                    break;
-                case 'searchCommit':
-                    await this._searchCommit(data.value, data.filters);
-                    break;
-                case 'pickBranchFilter':
-                    await this._pickBranchFilter();
-                    break;
-                case 'runCommand':
-                    await vscode.commands.executeCommand(data.command);
-                    break;
-                case 'checkoutBranch':
-                    await this._checkoutBranch(data.repoPath, data.branchName);
-                    break;
-            }
-        });
+    // Listen for configuration changes
+    const configChangeListener = vscode.workspace.onDidChangeConfiguration(
+      (e) => {
+        if (e.affectsConfiguration("multiRepoGit.toolbarButtonSize")) {
+          webviewView.webview.html = this._getHtmlForWebview(
+            webviewView.webview,
+          );
+        }
+      },
+    );
+
+    webviewView.onDidDispose(() => {
+      configChangeListener.dispose();
+    });
+
+    webviewView.webview.onDidReceiveMessage(async (data) => {
+      switch (data.type) {
+        case "searchBranch":
+          await this._searchBranch(data.value);
+          break;
+        case "searchCommit":
+          await this._searchCommit(data.value, data.filters);
+          break;
+        case "pickBranchFilter":
+          await this._pickBranchFilter();
+          break;
+        case "runCommand":
+          await vscode.commands.executeCommand(data.command);
+          break;
+        case "checkoutBranch":
+          await this._checkoutBranch(data.repoPath, data.branchName);
+          break;
+      }
+    });
+  }
+
+  public async updateRepoState(repoPath: string) {
+    try {
+      const git = simpleGit(repoPath);
+      const local = await git.branchLocal();
+      const currentBranch = local.current;
+      this._view?.webview.postMessage({
+        type: "branchUpdated",
+        repoPath,
+        branchName: currentBranch,
+      });
+    } catch (e) {
+      console.error("Error updating repo state", e);
     }
+  }
 
-    public async updateRepoState(repoPath: string) {
+  private async _checkoutBranch(repoPath: string, branchName: string) {
+    try {
+      const git = simpleGit(repoPath);
+      const repoName = path.basename(repoPath);
+      this._output.appendLine(`\n=== ${repoName} » Checkout ${branchName} ===`);
+
+      // Check if it's a remote branch that needs tracking
+      const branches = await git.branch();
+      if (!branches.all.includes(branchName)) {
+        // It might be a remote branch, try to checkout as is (git handles remote tracking often)
+        // or find the remote branch name
+        await git.checkout(branchName);
+      } else {
+        await git.checkout(branchName);
+      }
+
+      this._output.appendLine(`Checked out ${branchName}.`);
+      vscode.window.showInformationMessage(
+        `Checked out ${branchName} in ${repoName}`,
+      );
+
+      // Notify webview to update the UI
+      this._view?.webview.postMessage({
+        type: "branchUpdated",
+        repoPath,
+        branchName,
+      });
+    } catch (e: any) {
+      this._output.appendLine(`Error: ${e.message || e}`);
+      vscode.window.showErrorMessage(
+        `Failed to checkout ${branchName}: ${e.message || e}`,
+      );
+    }
+  }
+
+  private async _searchBranch(query: string) {
+    if (!query) {
+      return;
+    }
+    this._view?.webview.postMessage({ type: "started" });
+
+    const repos = await getAllGitRepos();
+    const results: {
+      name: string;
+      path: string;
+      currentBranch: string;
+      matches: { label: string; value: string; type: "branch" }[];
+    }[] = [];
+
+    await Promise.all(
+      repos.map(async (repoPath) => {
         try {
-            const git = simpleGit(repoPath);
-            const local = await git.branchLocal();
-            const currentBranch = local.current;
-            this._view?.webview.postMessage({ type: 'branchUpdated', repoPath, branchName: currentBranch });
+          const git = simpleGit(repoPath);
+          const local = await git.branchLocal();
+          const currentBranch = local.current;
+          const matches: { label: string; value: string; type: "branch" }[] =
+            [];
+
+          // Find all local branches
+          local.all
+            .filter((b) => b.includes(query))
+            .forEach((b) => {
+              matches.push({ label: b, value: b, type: "branch" });
+            });
+
+          const remotes = await git.branch(["-r"]);
+          // Find all remote branches
+          remotes.all
+            .filter((b) => b.includes(query))
+            .forEach((b) => {
+              let branchName = b;
+              // Try to strip remote name if possible (e.g. origin/feature -> feature)
+              const parts = branchName.split("/");
+              if (
+                parts.length > 1 &&
+                (parts[0] === "origin" || parts[0] === "upstream")
+              ) {
+                branchName = parts.slice(1).join("/");
+              }
+              // Avoid duplicates if local branch exists with same name
+              if (!matches.find((m) => m.value === branchName)) {
+                matches.push({ label: b, value: branchName, type: "branch" });
+              }
+            });
+
+          if (matches.length > 0) {
+            results.push({
+              name: path.basename(repoPath),
+              path: repoPath,
+              currentBranch,
+              matches,
+            });
+          }
         } catch (e) {
-            console.error('Error updating repo state', e);
+          console.error(`Error checking repo ${repoPath}:`, e);
         }
-    }
+      }),
+    );
 
-    private async _checkoutBranch(repoPath: string, branchName: string) {
+    this._view?.webview.postMessage({ type: "results", results });
+  }
+
+  private async _pickBranchFilter() {
+    const repos = await getAllGitRepos();
+    const allBranches = new Set<string>();
+
+    await Promise.all(
+      repos.map(async (repoPath) => {
         try {
-            const git = simpleGit(repoPath);
-            const repoName = path.basename(repoPath);
-            this._output.appendLine(`\n=== ${repoName} » Checkout ${branchName} ===`);
-
-            // Check if it's a remote branch that needs tracking
-            const branches = await git.branch();
-            if (!branches.all.includes(branchName)) {
-                // It might be a remote branch, try to checkout as is (git handles remote tracking often)
-                // or find the remote branch name
-                await git.checkout(branchName);
-            } else {
-                await git.checkout(branchName);
+          const git = simpleGit(repoPath);
+          const branches = await git.branch();
+          branches.all.forEach((b) => {
+            let name = b;
+            if (name.startsWith("remotes/")) {
+              const parts = name.split("/");
+              if (parts.length > 2) {
+                name = parts.slice(2).join("/");
+              }
             }
-
-            this._output.appendLine(`Checked out ${branchName}.`);
-            vscode.window.showInformationMessage(`Checked out ${branchName} in ${repoName}`);
-
-            // Notify webview to update the UI
-            this._view?.webview.postMessage({ type: 'branchUpdated', repoPath, branchName });
-        } catch (e: any) {
-            this._output.appendLine(`Error: ${e.message || e}`);
-            vscode.window.showErrorMessage(`Failed to checkout ${branchName}: ${e.message || e}`);
+            allBranches.add(name);
+          });
+        } catch (e) {
+          console.error(`Error fetching branches for ${repoPath}:`, e);
         }
+      }),
+    );
+
+    const sortedBranches = Array.from(allBranches).sort();
+    const pick = await vscode.window.showQuickPick(sortedBranches, {
+      placeHolder: "Select branch to filter by",
+    });
+
+    if (pick) {
+      this._view?.webview.postMessage({
+        type: "branchFilterSelected",
+        branch: pick,
+      });
     }
+  }
 
-    private async _searchBranch(query: string) {
-        if (!query) {
-            return;
-        }
-        this._view?.webview.postMessage({ type: 'started' });
-
-        const repos = await getAllGitRepos();
-        const results: { name: string; path: string; currentBranch: string; matches: { label: string; value: string; type: 'branch' }[] }[] = [];
-
-        await Promise.all(repos.map(async (repoPath) => {
-            try {
-                const git = simpleGit(repoPath);
-                const local = await git.branchLocal();
-                const currentBranch = local.current;
-                const matches: { label: string; value: string; type: 'branch' }[] = [];
-
-                // Find all local branches
-                local.all.filter(b => b.includes(query)).forEach(b => {
-                    matches.push({ label: b, value: b, type: 'branch' });
-                });
-
-                const remotes = await git.branch(['-r']);
-                // Find all remote branches
-                remotes.all.filter(b => b.includes(query)).forEach(b => {
-                    let branchName = b;
-                    // Try to strip remote name if possible (e.g. origin/feature -> feature)
-                    const parts = branchName.split('/');
-                    if (parts.length > 1 && (parts[0] === 'origin' || parts[0] === 'upstream')) {
-                        branchName = parts.slice(1).join('/');
-                    }
-                    // Avoid duplicates if local branch exists with same name
-                    if (!matches.find(m => m.value === branchName)) {
-                        matches.push({ label: b, value: branchName, type: 'branch' });
-                    }
-                });
-
-                if (matches.length > 0) {
-                    results.push({ name: path.basename(repoPath), path: repoPath, currentBranch, matches });
-                }
-            } catch (e) {
-                console.error(`Error checking repo ${repoPath}:`, e);
-            }
-        }));
-
-        this._view?.webview.postMessage({ type: 'results', results });
+  private async _searchCommit(
+    commitTitle: string,
+    filters?: {
+      author?: string;
+      dateFrom?: string;
+      dateTo?: string;
+      branch?: string;
+    },
+  ) {
+    if (
+      !commitTitle &&
+      (!filters ||
+        (!filters.author &&
+          !filters.dateFrom &&
+          !filters.dateTo &&
+          !filters.branch))
+    ) {
+      return;
     }
+    this._view?.webview.postMessage({ type: "started" });
 
-    private async _pickBranchFilter() {
-        const repos = await getAllGitRepos();
-        const allBranches = new Set<string>();
+    const repos = await getAllGitRepos();
+    const results: {
+      name: string;
+      path: string;
+      currentBranch: string;
+      matches: {
+        type: "commit";
+        hash: string;
+        shortHash: string;
+        message: string;
+        author: string;
+        date: string;
+        refs: string;
+      }[];
+    }[] = [];
 
-        await Promise.all(repos.map(async (repoPath) => {
-            try {
-                const git = simpleGit(repoPath);
-                const branches = await git.branch();
-                branches.all.forEach(b => {
-                    let name = b;
-                    if (name.startsWith('remotes/')) {
-                        const parts = name.split('/');
-                        if (parts.length > 2) {
-                            name = parts.slice(2).join('/');
-                        }
-                    }
-                    allBranches.add(name);
-                });
-            } catch (e) {
-                console.error(`Error fetching branches for ${repoPath}:`, e);
+    await Promise.all(
+      repos.map(async (repoPath) => {
+        try {
+          const git = simpleGit(repoPath);
+          const local = await git.branchLocal();
+          const currentBranch = local.current;
+
+          const logOptions: string[] = ["--all"];
+          if (commitTitle) {
+            logOptions.push(`--grep=${commitTitle}`);
+          }
+          if (filters?.author) {
+            logOptions.push(`--author=${filters.author}`);
+          }
+          if (filters?.dateFrom) {
+            logOptions.push(`--since=${filters.dateFrom}`);
+          }
+          if (filters?.dateTo) {
+            logOptions.push(`--until=${filters.dateTo}`);
+          }
+
+          if (filters?.branch) {
+            const index = logOptions.indexOf("--all");
+            if (index > -1) {
+              logOptions.splice(index, 1);
             }
-        }));
+            logOptions.push(filters.branch);
+          }
 
-        const sortedBranches = Array.from(allBranches).sort();
-        const pick = await vscode.window.showQuickPick(sortedBranches, {
-            placeHolder: 'Select branch to filter by'
-        });
-
-        if (pick) {
-            this._view?.webview.postMessage({ type: 'branchFilterSelected', branch: pick });
+          // Search for commit message
+          const log = await git.log(logOptions);
+          if (log.total > 0) {
+            const matches = log.all.map((commit) => ({
+              type: "commit" as const,
+              hash: commit.hash,
+              shortHash: commit.hash.substring(0, 7),
+              message: commit.message,
+              author: commit.author_name,
+              date: commit.date,
+              refs: commit.refs,
+            }));
+            results.push({
+              name: path.basename(repoPath),
+              path: repoPath,
+              currentBranch,
+              matches,
+            });
+          }
+        } catch (e) {
+          console.error(`Error checking repo ${repoPath}:`, e);
         }
-    }
+      }),
+    );
 
-    private async _searchCommit(commitTitle: string, filters?: { author?: string; dateFrom?: string; dateTo?: string; branch?: string }) {
-        if (!commitTitle && (!filters || (!filters.author && !filters.dateFrom && !filters.dateTo && !filters.branch))) {
-            return;
-        }
-        this._view?.webview.postMessage({ type: 'started' });
+    this._view?.webview.postMessage({ type: "results", results });
+  }
+  private _getHtmlForWebview(webview: vscode.Webview) {
+    // Inline styles for simplicity
+    const codiconsUri = webview.asWebviewUri(
+      vscode.Uri.joinPath(
+        this._extensionUri,
+        "node_modules",
+        "@vscode/codicons",
+        "dist",
+        "codicon.css",
+      ),
+    );
 
-        const repos = await getAllGitRepos();
-        const results: {
-            name: string;
-            path: string;
-            currentBranch: string;
-            matches: {
-                type: 'commit';
-                hash: string;
-                shortHash: string;
-                message: string;
-                author: string;
-                date: string;
-                refs: string;
-            }[]
-        }[] = [];
+    // Get button size from configuration
+    const config = vscode.workspace.getConfiguration("multiRepoGit");
+    const buttonSize = config.get<number>("toolbarButtonSize", 75);
 
-        await Promise.all(repos.map(async (repoPath) => {
-            try {
-                const git = simpleGit(repoPath);
-                const local = await git.branchLocal();
-                const currentBranch = local.current;
+    const buttonHeight = `${buttonSize}px`;
 
-                const logOptions: string[] = ['--all'];
-                if (commitTitle) {
-                    logOptions.push(`--grep=${commitTitle}`);
-                }
-                if (filters?.author) {
-                    logOptions.push(`--author=${filters.author}`);
-                }
-                if (filters?.dateFrom) {
-                    logOptions.push(`--since=${filters.dateFrom}`);
-                }
-                if (filters?.dateTo) {
-                    logOptions.push(`--until=${filters.dateTo}`);
-                }
-
-                if (filters?.branch) {
-                    const index = logOptions.indexOf('--all');
-                    if (index > -1) {
-                        logOptions.splice(index, 1);
-                    }
-                    logOptions.push(filters.branch);
-                }
-
-                // Search for commit message
-                const log = await git.log(logOptions);
-                if (log.total > 0) {
-                    const matches = log.all.map(commit => ({
-                        type: 'commit' as const,
-                        hash: commit.hash,
-                        shortHash: commit.hash.substring(0, 7),
-                        message: commit.message,
-                        author: commit.author_name,
-                        date: commit.date,
-                        refs: commit.refs
-                    }));
-                    results.push({ name: path.basename(repoPath), path: repoPath, currentBranch, matches });
-                }
-            } catch (e) {
-                console.error(`Error checking repo ${repoPath}:`, e);
-            }
-        }));
-
-        this._view?.webview.postMessage({ type: 'results', results });
-    } private _getHtmlForWebview(webview: vscode.Webview) {
-        // Inline styles for simplicity
-        const codiconsUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'node_modules', '@vscode/codicons', 'dist', 'codicon.css'));
-
-        return `<!DOCTYPE html>
+    return `<!DOCTYPE html>
 			<html lang="en">
 			<head>
 				<meta charset="UTF-8">
@@ -250,6 +337,12 @@ export class MultiRepoViewProvider implements vscode.WebviewViewProvider {
 				<title>Multi Repo Search</title>
                 <link href="${codiconsUri}" rel="stylesheet" />
 				<style>
+					:root {
+						--button-height: ${buttonHeight};
+					}
+					* {
+						--button-height: ${buttonHeight};
+					}
 					body { padding: 10px; font-family: var(--vscode-font-family); color: var(--vscode-foreground); }
 					.section { margin-bottom: 20px; }
 					h3 { font-size: 1.1em; margin-bottom: 8px; text-transform: uppercase; opacity: 0.8; }
@@ -350,13 +443,13 @@ export class MultiRepoViewProvider implements vscode.WebviewViewProvider {
                     /* Toolbar Styles */
                     .toolbar { 
                         display: grid; 
-                        grid-template-columns: repeat(auto-fill, minmax(85px, 1fr));
+                        grid-template-columns: repeat(auto-fill, minmax(var(--button-height), 1fr));
                         gap: 10px; 
                         margin-bottom: 20px; 
                     }
                     .icon-btn {
                         width: 100%;
-                        height: 75px;
+                        aspect-ratio: 1 / 1;
                         padding: 10px 4px;
                         display: flex;
                         flex-direction: column;
@@ -369,6 +462,10 @@ export class MultiRepoViewProvider implements vscode.WebviewViewProvider {
                         width: 24px;
                         height: 24px;
                         fill: currentColor;
+                    }
+                    .icon-btn .codicon {
+                      font-size: 24px;
+                      line-height: 1;
                     }
                     .btn-label {
                         font-size: 0.9em;
@@ -383,44 +480,48 @@ export class MultiRepoViewProvider implements vscode.WebviewViewProvider {
                     <h3>Global Actions</h3>
                     <div class="toolbar">
                         <button class="icon-btn" title="Fetch All" onclick="runCmd('multi-repo-git-commands.fetchAll')">
-                            <svg viewBox="0 0 16 16"><path d="M2.5 7.5a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 .5.5v3a.5.5 0 0 1-.5.5h-9a.5.5 0 0 1-.5-.5v-3zM3 8v2h8V8H3zm-2 3.5a.5.5 0 0 1 .5-.5h13a.5.5 0 0 1 .5.5v3a.5.5 0 0 1-.5.5H1.5a.5.5 0 0 1-.5-.5v-3zM2 12v2h12v-2H2zm.5-8a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-.5.5h-5a.5.5 0 0 1-.5-.5v-2zM3 4v1h4V4H3z"/></svg>
-                            <span class="btn-label">Fetch</span>
+                          <i class="codicon codicon-repo-sync"></i>
+                          <span class="btn-label">Fetch</span>
                         </button>
                         <button class="icon-btn" title="Pull All" onclick="runCmd('multi-repo-git-commands.pullAll')">
-                            <svg viewBox="0 0 16 16"><path d="M13 6h-2v4H5V6H3l5-5 5 5zM6 12v2h4v-2H6z"/></svg>
-                            <span class="btn-label">Pull</span>
+                          <i class="codicon codicon-repo-pull"></i>
+                          <span class="btn-label">Pull</span>
                         </button>
                         <button class="icon-btn" title="Push All" onclick="runCmd('multi-repo-git-commands.pushAll')">
-                            <svg viewBox="0 0 16 16"><path d="M3 10h2V6h6v4h2L8 15l-5-5zm7-6V2H6v2h4z"/></svg>
-                            <span class="btn-label">Push</span>
+                          <i class="codicon codicon-repo-push"></i>
+                          <span class="btn-label">Push</span>
                         </button>
                         <button class="icon-btn" title="Commit All" onclick="runCmd('multi-repo-git-commands.commitAll')">
-                            <svg viewBox="0 0 16 16"><path d="M13.5 7h-2.1a3.5 3.5 0 0 0-6.8 0H2.5a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h2.1a3.5 3.5 0 0 0 6.8 0h2.1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5zM8 10a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg>
-                            <span class="btn-label">Commit</span>
+                          <i class="codicon codicon-git-commit"></i>
+                          <span class="btn-label">Commit</span>
                         </button>
                         <button class="icon-btn" title="Switch Branch" onclick="runCmd('multi-repo-git-commands.checkoutAll')">
-                            <svg viewBox="0 0 16 16"><path d="M8 1a3 3 0 0 1 3 3c0 1.2-.7 2.2-1.7 2.7L10 9.6a3 3 0 0 1 1.7 2.7c0 1.7-1.3 3-3 3s-3-1.3-3-3c0-1.2.7-2.2 1.7-2.7L6.8 7H5a2 2 0 0 0-2 2v4a1 1 0 0 1-2 0V9a4 4 0 0 1 4-4h1.8L6.1 3.7A3 3 0 0 1 8 1z"/></svg>
-                            <span class="btn-label">Switch</span>
+                          <i class="codicon codicon-git-branch"></i>
+                          <span class="btn-label">Switch</span>
                         </button>
                         <button class="icon-btn" title="Stage All" onclick="runCmd('multi-repo-git-commands.stageAll')">
-                            <svg viewBox="0 0 16 16"><path d="M14 7v1H8v6H7V8H1V7h6V1h1v6h6z"/></svg>
-                            <span class="btn-label">Stage</span>
+                          <i class="codicon codicon-diff-added"></i>
+                          <span class="btn-label">Stage</span>
                         </button>
                         <button class="icon-btn" title="Unstage All" onclick="runCmd('multi-repo-git-commands.unstageAll')">
-                            <svg viewBox="0 0 16 16"><path d="M14 7v1H1V7h13z"/></svg>
-                            <span class="btn-label">Unstage</span>
+                          <i class="codicon codicon-diff-removed"></i>
+                          <span class="btn-label">Unstage</span>
                         </button>
                         <button class="icon-btn" title="Stash All" onclick="runCmd('multi-repo-git-commands.stashAll')">
-                            <svg viewBox="0 0 16 16"><path d="M14 4H2V3h12v1zm0 2H2v7h12V6zM3 7h10v5H3V7zm1-4h8V2H4v1z"/></svg>
-                            <span class="btn-label">Stash</span>
+                          <i class="codicon codicon-archive"></i>
+                          <span class="btn-label">Stash</span>
                         </button>
                         <button class="icon-btn" title="Pop Stash All" onclick="runCmd('multi-repo-git-commands.popStashAll')">
-                            <svg viewBox="0 0 16 16"><path d="M14 11v2H2v-2h12zm-1-1H3V6h10v4zM4 7v2h8V7H4zm4-5l3 3H9v3H7V5H5l3-3z"/></svg>
-                            <span class="btn-label">Pop</span>
+                          <i class="codicon codicon-arrow-up"></i>
+                          <span class="btn-label">Pop</span>
                         </button>
                         <button class="icon-btn" title="Discard All" onclick="runCmd('multi-repo-git-commands.discardAll')">
-                            <svg viewBox="0 0 16 16"><path d="M11 2H9c0-.55-.45-1-1-1H8c-.55 0-1 .45-1 1H5c-.55 0-1 .45-1 1v1h8V3c0-.55-.45-1-1-1zM4 5v9c0 .55.45 1 1 1h6c.55 0 1-.45 1-1V5H4zm2 8H5V7h1v6zm2 0H7V7h1v6zm2 0H9V7h1v6zm2 0h-1V7h1v6z"/></svg>
-                            <span class="btn-label">Discard</span>
+                          <i class="codicon codicon-trash"></i>
+                          <span class="btn-label">Discard</span>
+                        </button>
+                        <button class="icon-btn" title="Reset Workspace" onclick="runCmd('multi-repo-git-commands.resetWorkspace')">
+                          <i class="codicon codicon-refresh"></i>
+                          <span class="btn-label">Reset</span>
                         </button>
                     </div>
                 </div>
@@ -637,5 +738,5 @@ export class MultiRepoViewProvider implements vscode.WebviewViewProvider {
 				</script>
 			</body>
 			</html>`;
-    }
+  }
 }

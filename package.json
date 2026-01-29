@@ -14,6 +14,11 @@
   },
   "homepage": "https://github.com/DanieleDituri/multi-repo-git-commands#readme",
   "icon": "images/icon.png",
+  "files": [
+    "dist/",
+    "images/",
+    "package.json"
+  ],
   "engines": {
     "vscode": "^1.90.0"
   },
@@ -60,6 +65,13 @@
             ".cache"
           ],
           "description": "Folder names to exclude during nested repository scanning."
+        },
+        "multiRepoGit.toolbarButtonSize": {
+          "type": "number",
+          "default": 75,
+          "minimum": 40,
+          "maximum": 150,
+          "description": "Height of the toolbar buttons in pixels (40-150). Default is 75px."
         }
       }
     },
@@ -77,146 +89,127 @@
       {
         "command": "multi-repo-git-commands.statusAll",
         "title": "Multi-Repo Git: Status All",
-        "category": "Git (Multi-Repo)",
-        "icon": "$(info)"
+        "category": "Git (Multi-Repo)"
       },
       {
         "command": "multi-repo-git-commands.fetchAll",
         "title": "Multi-Repo Git: Fetch All",
-        "category": "Git (Multi-Repo)",
-        "icon": "$(repo-sync)"
+        "category": "Git (Multi-Repo)"
       },
       {
         "command": "multi-repo-git-commands.pullAll",
         "title": "Multi-Repo Git: Pull All (rebase)",
-        "category": "Git (Multi-Repo)",
-        "icon": "$(repo-pull)"
+        "category": "Git (Multi-Repo)"
       },
       {
         "command": "multi-repo-git-commands.pushAll",
         "title": "Multi-Repo Git: Push All",
-        "category": "Git (Multi-Repo)",
-        "icon": "$(repo-push)"
+        "category": "Git (Multi-Repo)"
       },
       {
         "command": "multi-repo-git-commands.commitAll",
         "title": "Multi-Repo Git: Commit All",
-        "category": "Git (Multi-Repo)",
-        "icon": "$(git-commit)"
+        "category": "Git (Multi-Repo)"
       },
       {
         "command": "multi-repo-git-commands.stageAll",
         "title": "Multi-Repo Git: Stage All Changes",
-        "category": "Git (Multi-Repo)",
-        "icon": "$(diff-insert)"
+        "category": "Git (Multi-Repo)"
       },
       {
         "command": "multi-repo-git-commands.unstageAll",
         "title": "Multi-Repo Git: Unstage All Changes",
-        "category": "Git (Multi-Repo)",
-        "icon": "$(diff-remove)"
+        "category": "Git (Multi-Repo)"
       },
       {
         "command": "multi-repo-git-commands.discardAll",
         "title": "Multi-Repo Git: Discard All Changes",
-        "category": "Git (Multi-Repo)",
-        "icon": "$(discard)"
+        "category": "Git (Multi-Repo)"
       },
       {
         "command": "multi-repo-git-commands.stashAll",
         "title": "Multi-Repo Git: Stash All Changes",
-        "category": "Git (Multi-Repo)",
-        "icon": "$(archive)"
+        "category": "Git (Multi-Repo)"
       },
       {
         "command": "multi-repo-git-commands.popStashAll",
         "title": "Multi-Repo Git: Pop Stash All",
-        "category": "Git (Multi-Repo)",
-        "icon": "$(run-all)"
+        "category": "Git (Multi-Repo)"
       },
       {
         "command": "multi-repo-git-commands.checkoutAll",
         "title": "Multi-Repo Git: Checkout Branch (All)",
-        "category": "Git (Multi-Repo)",
-        "icon": "$(git-branch)"
+        "category": "Git (Multi-Repo)"
       },
       {
         "command": "multi-repo-git-commands.createBranchAll",
         "title": "Multi-Repo Git: Create Branch (All)",
-        "category": "Git (Multi-Repo)",
-        "icon": "$(git-branch-create)"
+        "category": "Git (Multi-Repo)"
       },
       {
         "command": "multi-repo-git-commands.deleteBranchAll",
         "title": "Multi-Repo Git: Delete Branch (All)",
-        "category": "Git (Multi-Repo)",
-        "icon": "$(git-branch-delete)"
+        "category": "Git (Multi-Repo)"
       },
       {
         "command": "multi-repo-git-commands.createTagAll",
         "title": "Multi-Repo Git: Create Tag (All)",
-        "category": "Git (Multi-Repo)",
-        "icon": "$(tag-add)"
+        "category": "Git (Multi-Repo)"
       },
       {
         "command": "multi-repo-git-commands.deleteTagAll",
         "title": "Multi-Repo Git: Delete Tag (All)",
-        "category": "Git (Multi-Repo)",
-        "icon": "$(tag-remove)"
+        "category": "Git (Multi-Repo)"
       },
       {
         "command": "multi-repo-git-commands.createRemoteAll",
         "title": "Multi-Repo Git: Create Remote (All)",
-        "category": "Git (Multi-Repo)",
-        "icon": "$(remote)"
+        "category": "Git (Multi-Repo)"
       },
       {
         "command": "multi-repo-git-commands.deleteRemoteAll",
         "title": "Multi-Repo Git: Delete Remote (All)",
-        "category": "Git (Multi-Repo)",
-        "icon": "$(remote)"
+        "category": "Git (Multi-Repo)"
+      },
+      {
+        "command": "multi-repo-git-commands.resetWorkspace",
+        "title": "Multi-Repo Git: Reset Workspace",
+        "category": "Git (Multi-Repo)"
       },
       {
         "command": "multi-repo-git-commands.openRepo",
         "title": "Open Repository",
-        "category": "Git (Multi-Repo)",
-        "icon": "$(folder-opened)"
+        "category": "Git (Multi-Repo)"
       },
       {
         "command": "multi-repo-git-commands.statusRepo",
         "title": "Status",
-        "category": "Git (Multi-Repo)",
-        "icon": "$(info)"
+        "category": "Git (Multi-Repo)"
       },
       {
         "command": "multi-repo-git-commands.fetchRepo",
         "title": "Fetch",
-        "category": "Git (Multi-Repo)",
-        "icon": "$(cloud-download)"
+        "category": "Git (Multi-Repo)"
       },
       {
         "command": "multi-repo-git-commands.pullRepo",
         "title": "Pull (rebase)",
-        "category": "Git (Multi-Repo)",
-        "icon": "$(repo-pull)"
+        "category": "Git (Multi-Repo)"
       },
       {
         "command": "multi-repo-git-commands.customRepo",
         "title": "Run Custom Command…",
-        "category": "Git (Multi-Repo)",
-        "icon": "$(terminal)"
+        "category": "Git (Multi-Repo)"
       },
       {
         "command": "multi-repo-git-commands.discardRepo",
         "title": "Discard All Changes",
-        "category": "Git (Multi-Repo)",
-        "icon": "$(discard)"
+        "category": "Git (Multi-Repo)"
       },
       {
         "command": "multi-repo-git-commands.checkoutRepo",
         "title": "Checkout Branch…",
-        "category": "Git (Multi-Repo)",
-        "icon": "$(git-branch)"
+        "category": "Git (Multi-Repo)"
       }
     ],
     "submenus": [
@@ -309,49 +302,6 @@
           "command": "multi-repo-git-commands.deleteRemoteAll"
         }
       ],
-      "scm/title": [
-        {
-          "command": "multi-repo-git-commands.statusAll",
-          "group": "navigation"
-        },
-        {
-          "command": "multi-repo-git-commands.fetchAll",
-          "group": "navigation"
-        },
-        {
-          "command": "multi-repo-git-commands.pullAll",
-          "group": "navigation"
-        },
-        {
-          "command": "multi-repo-git-commands.pushAll",
-          "group": "navigation"
-        },
-        {
-          "command": "multi-repo-git-commands.checkoutAll",
-          "group": "navigation"
-        },
-        {
-          "submenu": "mrg:commit"
-        },
-        {
-          "submenu": "mrg:pull-push"
-        },
-        {
-          "submenu": "mrg:stash"
-        },
-        {
-          "submenu": "mrg:branches"
-        },
-        {
-          "submenu": "mrg:tags"
-        },
-        {
-          "submenu": "mrg:changes"
-        },
-        {
-          "submenu": "mrg:remotes"
-        }
-      ],
       "scm/sourceControl/context": [
         {
           "command": "multi-repo-git-commands.customRepo",
@@ -419,6 +369,9 @@
         },
         {
           "command": "multi-repo-git-commands.deleteRemoteAll"
+        },
+        {
+          "command": "multi-repo-git-commands.resetWorkspace"
         },
         {
           "command": "multi-repo-git-commands.openRepo",
