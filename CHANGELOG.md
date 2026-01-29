@@ -1,5 +1,12 @@
 # Change Log
 
+## [1.0.3] - 2026-01-29
+
+### Fixed
+
+- Added Content Security Policy to allow codicon fonts to load properly in webview
+- Fixed missing icons in commit search results (author, calendar, tag icons)
+
 ## [1.0.2] - 2026-01-29
 
 ### Changed

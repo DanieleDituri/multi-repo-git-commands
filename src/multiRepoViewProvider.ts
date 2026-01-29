@@ -329,11 +329,14 @@ export class MultiRepoViewProvider implements vscode.WebviewViewProvider {
 
     const buttonHeight = `${buttonSize}px`;
 
+    const nonce = getNonce();
+
     return `<!DOCTYPE html>
 			<html lang="en">
 			<head>
 				<meta charset="UTF-8">
 				<meta name="viewport" content="width=device-width, initial-scale=1.0">
+				<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; font-src ${webview.cspSource}; script-src 'nonce-${nonce}';">
 				<title>Multi Repo Search</title>
                 <link href="${codiconsUri}" rel="stylesheet" />
 				<style>
@@ -739,4 +742,14 @@ export class MultiRepoViewProvider implements vscode.WebviewViewProvider {
 			</body>
 			</html>`;
   }
+}
+
+function getNonce() {
+  let text = "";
+  const possible =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  for (let i = 0; i < 32; i++) {
+    text += possible.charAt(Math.floor(Math.random() * possible.length));
+  }
+  return text;
 }
