@@ -2,7 +2,7 @@
   "name": "multi-repo-git-commands",
   "displayName": "Multi Repo Git Commands",
   "description": "This extension lets you run Git commands across all repositories opened in your current workspace. It provides a simple and consistent way to execute operations such as pull, commit, or push simultaneously on multiple projects, saving time and reducing repetitive manual work.",
-  "version": "1.0.3",
+  "version": "1.0.5",
   "publisher": "DanieleDituri",
   "license": "MIT",
   "repository": {

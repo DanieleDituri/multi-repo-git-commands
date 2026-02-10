@@ -47,6 +47,9 @@ export class MultiRepoViewProvider implements vscode.WebviewViewProvider {
         case "searchBranch":
           await this._searchBranch(data.value);
           break;
+        case "searchTag":
+          await this._searchTag(data.value);
+          break;
         case "searchCommit":
           await this._searchCommit(data.value, data.filters);
           break;
@@ -58,6 +61,9 @@ export class MultiRepoViewProvider implements vscode.WebviewViewProvider {
           break;
         case "checkoutBranch":
           await this._checkoutBranch(data.repoPath, data.branchName);
+          break;
+        case "checkoutTag":
+          await this._checkoutTag(data.repoPath, data.tagName);
           break;
       }
     });
@@ -109,6 +115,26 @@ export class MultiRepoViewProvider implements vscode.WebviewViewProvider {
       this._output.appendLine(`Error: ${e.message || e}`);
       vscode.window.showErrorMessage(
         `Failed to checkout ${branchName}: ${e.message || e}`,
+      );
+    }
+  }
+
+  private async _checkoutTag(repoPath: string, tagName: string) {
+    try {
+      const git = simpleGit(repoPath);
+      const repoName = path.basename(repoPath);
+      this._output.appendLine(`\n=== ${repoName} » Checkout tag ${tagName} ===`);
+
+      await git.checkout(tagName);
+
+      this._output.appendLine(`Checked out tag ${tagName}.`);
+      vscode.window.showInformationMessage(
+        `Checked out tag ${tagName} in ${repoName}`,
+      );
+    } catch (e: any) {
+      this._output.appendLine(`Error: ${e.message || e}`);
+      vscode.window.showErrorMessage(
+        `Failed to checkout tag ${tagName}: ${e.message || e}`,
       );
     }
   }
@@ -180,6 +206,52 @@ export class MultiRepoViewProvider implements vscode.WebviewViewProvider {
     this._view?.webview.postMessage({ type: "results", results });
   }
 
+  private async _searchTag(query: string) {
+    if (!query) {
+      return;
+    }
+    this._view?.webview.postMessage({ type: "started" });
+
+    const repos = await getAllGitRepos();
+    const results: {
+      name: string;
+      path: string;
+      currentBranch: string;
+      matches: { label: string; value: string; type: "tag" }[];
+    }[] = [];
+
+    await Promise.all(
+      repos.map(async (repoPath) => {
+        try {
+          const git = simpleGit(repoPath);
+          const local = await git.branchLocal();
+          const currentBranch = local.current;
+          const matches: { label: string; value: string; type: "tag" }[] = [];
+
+          const tags = await git.tags();
+          tags.all
+            .filter((t) => t.includes(query))
+            .forEach((t) => {
+              matches.push({ label: t, value: t, type: "tag" });
+            });
+
+          if (matches.length > 0) {
+            results.push({
+              name: path.basename(repoPath),
+              path: repoPath,
+              currentBranch,
+              matches,
+            });
+          }
+        } catch (e) {
+          console.error(`Error checking repo ${repoPath}:`, e);
+        }
+      }),
+    );
+
+    this._view?.webview.postMessage({ type: "results", results });
+  }
+
   private async _pickBranchFilter() {
     const repos = await getAllGitRepos();
     const allBranches = new Set<string>();
@@ -225,6 +297,7 @@ export class MultiRepoViewProvider implements vscode.WebviewViewProvider {
       dateFrom?: string;
       dateTo?: string;
       branch?: string;
+      sha?: string;
     },
   ) {
     if (
@@ -233,7 +306,8 @@ export class MultiRepoViewProvider implements vscode.WebviewViewProvider {
         (!filters.author &&
           !filters.dateFrom &&
           !filters.dateTo &&
-          !filters.branch))
+          !filters.branch &&
+          !filters.sha))
     ) {
       return;
     }
@@ -263,25 +337,34 @@ export class MultiRepoViewProvider implements vscode.WebviewViewProvider {
           const currentBranch = local.current;
 
           const logOptions: string[] = ["--all"];
-          if (commitTitle) {
-            logOptions.push(`--grep=${commitTitle}`);
-          }
-          if (filters?.author) {
-            logOptions.push(`--author=${filters.author}`);
-          }
-          if (filters?.dateFrom) {
-            logOptions.push(`--since=${filters.dateFrom}`);
-          }
-          if (filters?.dateTo) {
-            logOptions.push(`--until=${filters.dateTo}`);
-          }
-
-          if (filters?.branch) {
+          const sha = filters?.sha?.trim();
+          if (sha) {
             const index = logOptions.indexOf("--all");
             if (index > -1) {
               logOptions.splice(index, 1);
             }
-            logOptions.push(filters.branch);
+            logOptions.push(sha, "-1");
+          } else {
+            if (commitTitle) {
+              logOptions.push(`--grep=${commitTitle}`);
+            }
+            if (filters?.author) {
+              logOptions.push(`--author=${filters.author}`);
+            }
+            if (filters?.dateFrom) {
+              logOptions.push(`--since=${filters.dateFrom}`);
+            }
+            if (filters?.dateTo) {
+              logOptions.push(`--until=${filters.dateTo}`);
+            }
+
+            if (filters?.branch) {
+              const index = logOptions.indexOf("--all");
+              if (index > -1) {
+                logOptions.splice(index, 1);
+              }
+              logOptions.push(filters.branch);
+            }
           }
 
           // Search for commit message
@@ -316,9 +399,8 @@ export class MultiRepoViewProvider implements vscode.WebviewViewProvider {
     const codiconsUri = webview.asWebviewUri(
       vscode.Uri.joinPath(
         this._extensionUri,
-        "node_modules",
-        "@vscode/codicons",
         "dist",
+        "codicons",
         "codicon.css",
       ),
     );
@@ -482,47 +564,47 @@ export class MultiRepoViewProvider implements vscode.WebviewViewProvider {
                 <div class="section">
                     <h3>Global Actions</h3>
                     <div class="toolbar">
-                        <button class="icon-btn" title="Fetch All" onclick="runCmd('multi-repo-git-commands.fetchAll')">
+                        <button class="icon-btn" title="Fetch All" data-command="multi-repo-git-commands.fetchAll">
                           <i class="codicon codicon-repo-sync"></i>
                           <span class="btn-label">Fetch</span>
                         </button>
-                        <button class="icon-btn" title="Pull All" onclick="runCmd('multi-repo-git-commands.pullAll')">
+                        <button class="icon-btn" title="Pull All" data-command="multi-repo-git-commands.pullAll">
                           <i class="codicon codicon-repo-pull"></i>
                           <span class="btn-label">Pull</span>
                         </button>
-                        <button class="icon-btn" title="Push All" onclick="runCmd('multi-repo-git-commands.pushAll')">
+                        <button class="icon-btn" title="Push All" data-command="multi-repo-git-commands.pushAll">
                           <i class="codicon codicon-repo-push"></i>
                           <span class="btn-label">Push</span>
                         </button>
-                        <button class="icon-btn" title="Commit All" onclick="runCmd('multi-repo-git-commands.commitAll')">
+                        <button class="icon-btn" title="Commit All" data-command="multi-repo-git-commands.commitAll">
                           <i class="codicon codicon-git-commit"></i>
                           <span class="btn-label">Commit</span>
                         </button>
-                        <button class="icon-btn" title="Switch Branch" onclick="runCmd('multi-repo-git-commands.checkoutAll')">
+                        <button class="icon-btn" title="Switch Branch" data-command="multi-repo-git-commands.checkoutAll">
                           <i class="codicon codicon-git-branch"></i>
                           <span class="btn-label">Switch</span>
                         </button>
-                        <button class="icon-btn" title="Stage All" onclick="runCmd('multi-repo-git-commands.stageAll')">
+                        <button class="icon-btn" title="Stage All" data-command="multi-repo-git-commands.stageAll">
                           <i class="codicon codicon-diff-added"></i>
                           <span class="btn-label">Stage</span>
                         </button>
-                        <button class="icon-btn" title="Unstage All" onclick="runCmd('multi-repo-git-commands.unstageAll')">
+                        <button class="icon-btn" title="Unstage All" data-command="multi-repo-git-commands.unstageAll">
                           <i class="codicon codicon-diff-removed"></i>
                           <span class="btn-label">Unstage</span>
                         </button>
-                        <button class="icon-btn" title="Stash All" onclick="runCmd('multi-repo-git-commands.stashAll')">
+                        <button class="icon-btn" title="Stash All" data-command="multi-repo-git-commands.stashAll">
                           <i class="codicon codicon-archive"></i>
                           <span class="btn-label">Stash</span>
                         </button>
-                        <button class="icon-btn" title="Pop Stash All" onclick="runCmd('multi-repo-git-commands.popStashAll')">
+                        <button class="icon-btn" title="Pop Stash All" data-command="multi-repo-git-commands.popStashAll">
                           <i class="codicon codicon-arrow-up"></i>
                           <span class="btn-label">Pop</span>
                         </button>
-                        <button class="icon-btn" title="Discard All" onclick="runCmd('multi-repo-git-commands.discardAll')">
+                        <button class="icon-btn" title="Discard All" data-command="multi-repo-git-commands.discardAll">
                           <i class="codicon codicon-trash"></i>
                           <span class="btn-label">Discard</span>
                         </button>
-                        <button class="icon-btn" title="Reset Workspace" onclick="runCmd('multi-repo-git-commands.resetWorkspace')">
+                        <button class="icon-btn" title="Reset Workspace" data-command="multi-repo-git-commands.resetWorkspace">
                           <i class="codicon codicon-refresh"></i>
                           <span class="btn-label">Reset</span>
                         </button>
@@ -535,6 +617,12 @@ export class MultiRepoViewProvider implements vscode.WebviewViewProvider {
 					<button id="searchBranchBtn">Search</button>
 				</div>
 
+        <div class="section">
+          <h3>Search Tag</h3>
+          <input type="text" id="tagInput" placeholder="e.g. v1.2.3" />
+          <button id="searchTagBtn">Search</button>
+        </div>
+
 				<div class="section">
 					<h3>Search Commit</h3>
                     <div style="display: flex; gap: 4px; margin-bottom: 8px;">
@@ -545,9 +633,10 @@ export class MultiRepoViewProvider implements vscode.WebviewViewProvider {
                     </div>
                     
                     <div id="commitFilters" class="filters" style="display: none; margin-bottom: 8px; padding: 8px; border: 1px solid var(--vscode-panel-border); border-radius: 4px;">
-                        <div class="filter-row">
-                            <input type="text" id="authorInput" placeholder="Author" />
-                        </div>
+                      <div class="filter-row" style="display: flex; gap: 4px;">
+                        <input type="text" id="authorInput" placeholder="Author" style="flex: 1;" />
+                        <input type="text" id="shaInput" placeholder="SHA" style="flex: 1;" />
+                      </div>
                         <div class="filter-row" style="display: flex; gap: 4px;">
                             <input type="date" id="dateFromInput" title="From Date" max="9999-12-31" />
                             <input type="date" id="dateToInput" title="To Date" max="9999-12-31" />
@@ -565,12 +654,20 @@ export class MultiRepoViewProvider implements vscode.WebviewViewProvider {
                 <div id="loading" class="loading">Searching...</div>
 				<div id="results" class="results"></div>
 
-				<script>
+				<script nonce="${nonce}">
 					const vscode = acquireVsCodeApi();
                     const resultsDiv = document.getElementById('results');
                     const loadingDiv = document.getElementById('loading');
                     let currentSearchType = '';
                     let currentSearchValue = '';
+
+          function escapeAttr(value) {
+            return String(value)
+              .replace(/&/g, '&amp;')
+              .replace(/"/g, '&quot;')
+              .replace(/</g, '&lt;')
+              .replace(/>/g, '&gt;');
+          }
 
                     function runCmd(command) {
                         vscode.postMessage({ type: 'runCommand', command });
@@ -579,6 +676,19 @@ export class MultiRepoViewProvider implements vscode.WebviewViewProvider {
                     function checkoutBranch(repoPath, branchName) {
                         vscode.postMessage({ type: 'checkoutBranch', repoPath, branchName });
                     }
+
+                    function checkoutTag(repoPath, tagName) {
+                      vscode.postMessage({ type: 'checkoutTag', repoPath, tagName });
+                    }
+
+                    document.querySelectorAll('button[data-command]').forEach((btn) => {
+                      btn.addEventListener('click', () => {
+                        const command = btn.getAttribute('data-command');
+                        if (command) {
+                          runCmd(command);
+                        }
+                      });
+                    });
 
                     document.getElementById('toggleFiltersBtn').addEventListener('click', () => {
                         const filters = document.getElementById('commitFilters');
@@ -631,20 +741,30 @@ export class MultiRepoViewProvider implements vscode.WebviewViewProvider {
                         }
                     });
 
+                    document.getElementById('searchTagBtn').addEventListener('click', () => {
+                      const value = document.getElementById('tagInput').value;
+                      if(value) {
+                        currentSearchType = 'tag';
+                        currentSearchValue = value;
+                        vscode.postMessage({ type: 'searchTag', value });
+                      }
+                    });
+
                     document.getElementById('searchCommitBtn').addEventListener('click', () => {
                         const value = document.getElementById('commitInput').value;
                         const author = document.getElementById('authorInput').value;
                         const dateFrom = document.getElementById('dateFromInput').value;
                         const dateTo = document.getElementById('dateToInput').value;
                         const branch = document.getElementById('branchFilterInput').value;
+                        const sha = document.getElementById('shaInput').value;
 
-                        if(value || author || dateFrom || dateTo || branch) {
+                        if(value || author || dateFrom || dateTo || branch || sha) {
                             currentSearchType = 'commit';
                             currentSearchValue = value;
                             vscode.postMessage({ 
                                 type: 'searchCommit', 
                                 value,
-                                filters: { author, dateFrom, dateTo, branch: branch === 'All Branches' ? '' : branch }
+                                filters: { author, dateFrom, dateTo, branch: branch === 'All Branches' ? '' : branch, sha }
                             });
                         }
                     });
@@ -655,6 +775,31 @@ export class MultiRepoViewProvider implements vscode.WebviewViewProvider {
 
                     document.getElementById('clearBranchFilterBtn').addEventListener('click', () => {
                         document.getElementById('branchFilterInput').value = '';
+                    });
+
+                    resultsDiv.addEventListener('click', (event) => {
+                      const target = event.target;
+                      if (!(target instanceof Element)) {
+                        return;
+                      }
+                      const button = target.closest('button[data-action]');
+                      if (!button) {
+                        return;
+                      }
+                      const action = button.getAttribute('data-action');
+                      if (action === 'checkoutBranch') {
+                        const repoPath = button.getAttribute('data-repo-path');
+                        const branchName = button.getAttribute('data-branch');
+                        if (repoPath && branchName) {
+                          checkoutBranch(repoPath, branchName);
+                        }
+                      } else if (action === 'checkoutTag') {
+                        const repoPath = button.getAttribute('data-repo-path');
+                        const tagName = button.getAttribute('data-tag');
+                        if (repoPath && tagName) {
+                          checkoutTag(repoPath, tagName);
+                        }
+                      }
                     });
 
                     window.addEventListener('message', event => {
@@ -675,18 +820,24 @@ export class MultiRepoViewProvider implements vscode.WebviewViewProvider {
                                 } else {
                                     resultsDiv.innerHTML = repos.map(r => {
                                         let matchHtml = '';
-                                        // Escape paths for JS string
-                                        const safePath = r.path.replace(/\\\\/g, '\\\\\\\\').replace(/'/g, "\\\\'");
+                                        const safePath = escapeAttr(r.path);
 
                                         if (r.matches && r.matches.length > 0) {
                                             const items = r.matches.map(m => {
                                                 if (m.type === 'branch') {
-                                                     const safeBranch = m.value.replace(/'/g, "\\\\'");
-                                                     const action = \`<div class="repo-actions"><button onclick="checkoutBranch('\${safePath}', '\${safeBranch}')">Checkout</button></div>\`;
+                                                     const safeBranch = escapeAttr(m.value);
+                                                     const action = \`<div class="repo-actions"><button data-action="checkoutBranch" data-repo-path="\${safePath}" data-branch="\${safeBranch}">Checkout</button></div>\`;
                                                      return \`<div class="match-item">
                                                         <span class="match-name">\${m.label}</span>
                                                         \${action}
                                                     </div>\`;
+                                                } else if (m.type === 'tag') {
+                                                   const safeTag = escapeAttr(m.value);
+                                                   const action = \`<div class="repo-actions"><button data-action="checkoutTag" data-repo-path="\${safePath}" data-tag="\${safeTag}">Checkout</button></div>\`;
+                                                   return \`<div class="match-item">
+                                                    <span class="match-name"><i class="codicon codicon-tag"></i> \${m.label}</span>
+                                                    \${action}
+                                                  </div>\`;
                                                 } else if (m.type === 'commit') {
                                                     const dateObj = new Date(m.date);
                                                     const dateStr = dateObj.toLocaleDateString() + ' ' + dateObj.toLocaleTimeString();

@@ -11,6 +11,14 @@ const watch = process.argv.includes("--watch");
 function copyAssets() {
   const srcDir = path.join(__dirname, "images");
   const destDir = path.join(__dirname, "dist", "images");
+  const codiconsSrcDir = path.join(
+    __dirname,
+    "node_modules",
+    "@vscode",
+    "codicons",
+    "dist",
+  );
+  const codiconsDestDir = path.join(__dirname, "dist", "codicons");
 
   if (fs.existsSync(srcDir)) {
     // Create destination directory if it doesn't exist
@@ -24,6 +32,18 @@ function copyAssets() {
       fs.copyFileSync(srcFile, destFile);
     });
     console.log("[assets] copied images folder to dist/");
+  }
+
+  if (fs.existsSync(codiconsSrcDir)) {
+    fs.mkdirSync(codiconsDestDir, { recursive: true });
+
+    const files = fs.readdirSync(codiconsSrcDir);
+    files.forEach((file) => {
+      const srcFile = path.join(codiconsSrcDir, file);
+      const destFile = path.join(codiconsDestDir, file);
+      fs.copyFileSync(srcFile, destFile);
+    });
+    console.log("[assets] copied codicons to dist/");
   }
 }
 

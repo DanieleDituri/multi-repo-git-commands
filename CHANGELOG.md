@@ -1,5 +1,24 @@
 # Change Log
 
+## [1.0.5] - 2026-02-10
+
+### Added
+
+- Commit search now supports searching by SHA hash
+- Commit search now supports searching by tag name
+
+### Fixed
+
+- Fixed icons not displaying correctly in the webview interface
+
+## [1.0.4] - 2026-01-30
+
+### Fixed
+
+- Restored webview script execution after CSP changes
+- Rewired button handlers to avoid inline scripts (commands work again)
+- Restored dynamic icons in search results
+
 ## [1.0.3] - 2026-01-29
 
 ### Fixed

@@ -83,9 +83,33 @@ export function activate(context: vscode.ExtensionContext) {
   const provider = new MultiRepoViewProvider(context.extensionUri, output);
 
   // --- Git Extension Integration for Real-time Updates ---
-  try {
-    const gitExtension = vscode.extensions.getExtension("vscode.git");
-    if (gitExtension) {
+  // Activate git extension asynchronously (non-blocking)
+  const gitExtension = vscode.extensions.getExtension("vscode.git");
+  if (gitExtension && !gitExtension.isActive) {
+    Promise.resolve(gitExtension.activate()).then(() => {
+      try {
+        const gitApi = gitExtension.exports.getAPI(1);
+
+        const subscribeToRepo = (repo: any) => {
+          // Subscribe to state changes (branch changes, commits, etc.)
+          repo.state.onDidChange(() => {
+            provider.updateRepoState(repo.rootUri.fsPath);
+          });
+        };
+
+        // Subscribe to existing repos
+        gitApi.repositories.forEach(subscribeToRepo);
+
+        // Subscribe to new repos
+        gitApi.onDidOpenRepository(subscribeToRepo);
+      } catch (e) {
+        console.error("Failed to hook into VS Code Git extension:", e);
+      }
+    }).catch(() => {
+      // Ignore activation errors silently
+    });
+  } else if (gitExtension && gitExtension.isActive) {
+    try {
       const gitApi = gitExtension.exports.getAPI(1);
 
       const subscribeToRepo = (repo: any) => {
@@ -100,9 +124,9 @@ export function activate(context: vscode.ExtensionContext) {
 
       // Subscribe to new repos
       gitApi.onDidOpenRepository(subscribeToRepo);
+    } catch (e) {
+      console.error("Failed to hook into VS Code Git extension:", e);
     }
-  } catch (e) {
-    console.error("Failed to hook into VS Code Git extension:", e);
   }
 
   async function getAllRepos(): Promise<RepoInfo[]> {
