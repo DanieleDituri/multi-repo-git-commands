@@ -407,7 +407,10 @@ export class MultiRepoViewProvider implements vscode.WebviewViewProvider {
 
     // Get button size from configuration
     const config = vscode.workspace.getConfiguration("multiRepoGit");
-    const buttonSize = config.get<number>("toolbarButtonSize", 75);
+    const buttonSize = Math.max(
+      50,
+      config.get<number>("toolbarButtonSize", 75),
+    );
 
     const buttonHeight = `${buttonSize}px`;
 
@@ -527,15 +530,15 @@ export class MultiRepoViewProvider implements vscode.WebviewViewProvider {
                     
                     /* Toolbar Styles */
                     .toolbar { 
-                        display: grid; 
-                        grid-template-columns: repeat(auto-fill, minmax(var(--button-height), 1fr));
-                        gap: 10px; 
-                        margin-bottom: 20px; 
+                      display: grid; 
+                      grid-template-columns: repeat(auto-fill, minmax(var(--button-height), var(--button-height)));
+                      gap: 10px; 
+                      margin-bottom: 20px; 
                     }
                     .icon-btn {
-                        width: 100%;
-                        aspect-ratio: 1 / 1;
-                        padding: 10px 4px;
+                      width: var(--button-height);
+                      height: var(--button-height);
+                      padding: 10px 4px;
                         display: flex;
                         flex-direction: column;
                         align-items: center;

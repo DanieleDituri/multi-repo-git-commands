@@ -1,5 +1,12 @@
 # Change Log
 
+## [1.0.6] - 2026-02-10
+
+### Fixed
+
+- Toolbar buttons remain fixed-size when resizing the sidebar
+- Enforced 50px minimum toolbar button size
+
 ## [1.0.5] - 2026-02-10
 
 ### Added
