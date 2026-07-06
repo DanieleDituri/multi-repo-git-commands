@@ -54,29 +54,29 @@ export class MultiRepoViewProvider implements vscode.WebviewViewProvider {
     });
 
     webviewView.webview.onDidReceiveMessage(async (data) => {
-      if (disposed) return;
+      if (disposed) {return;}
 
       switch (data.type) {
         case "searchBranch":
-          if (!disposed) await this._searchBranch(data.value);
+          if (!disposed) {await this._searchBranch(data.value);}
           break;
         case "searchTag":
-          if (!disposed) await this._searchTag(data.value);
+          if (!disposed) {await this._searchTag(data.value);}
           break;
         case "searchCommit":
-          if (!disposed) await this._searchCommit(data.value, data.filters);
+          if (!disposed) {await this._searchCommit(data.value, data.filters);}
           break;
         case "pickBranchFilter":
-          if (!disposed) await this._pickBranchFilter();
+          if (!disposed) {await this._pickBranchFilter();}
           break;
         case "runCommand":
           await vscode.commands.executeCommand(data.command);
           break;
         case "checkoutBranch":
-          if (!disposed) await this._checkoutBranch(data.repoPath, data.branchName);
+          if (!disposed) {await this._checkoutBranch(data.repoPath, data.branchName);}
           break;
         case "checkoutTag":
-          if (!disposed) await this._checkoutTag(data.repoPath, data.tagName);
+          if (!disposed) {await this._checkoutTag(data.repoPath, data.tagName);}
           break;
       }
     });

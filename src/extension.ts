@@ -104,7 +104,7 @@ export function activate(context: vscode.ExtensionContext) {
   const hookGitExtension = async () => {
     try {
       const gitExtension = vscode.extensions.getExtension("vscode.git");
-      if (!gitExtension) return;
+      if (!gitExtension) {return;}
 
       if (!gitExtension.isActive) {
         await gitExtension.activate();
@@ -214,7 +214,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   const runCustom = async (repos?: RepoInfo[]) => {
     const args = await pickOrPromptGitArgs();
-    if (!args) return;
+    if (!args) {return;}
     await runGitOperation(
       `git ${args.join(" ")}`,
       repos,
@@ -271,7 +271,7 @@ export function activate(context: vscode.ExtensionContext) {
     const message = await vscode.window.showInputBox({
       prompt: "Enter commit message",
     });
-    if (!message) return;
+    if (!message) {return;}
 
     const validation = validateCommitMessage(message);
     if (!validation.valid) {
@@ -395,7 +395,7 @@ export function activate(context: vscode.ExtensionContext) {
       placeHolder: "Select branch to checkout",
     });
 
-    if (!pick) return;
+    if (!pick) {return;}
 
     await runGitOperation(`Checkout ${pick}`, targetRepos, async (git) => {
       await git.checkout(pick);
@@ -407,7 +407,7 @@ export function activate(context: vscode.ExtensionContext) {
     const branch = await vscode.window.showInputBox({
       prompt: "New branch name",
     });
-    if (!branch) return;
+    if (!branch) {return;}
 
     const validation = validateBranchName(branch);
     if (!validation.valid) {
@@ -425,7 +425,7 @@ export function activate(context: vscode.ExtensionContext) {
     const branch = await vscode.window.showInputBox({
       prompt: "Branch name to delete",
     });
-    if (!branch) return;
+    if (!branch) {return;}
 
     const validation = validateBranchName(branch);
     if (!validation.valid) {
@@ -441,7 +441,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   const runCreateTag = async (repos?: RepoInfo[]) => {
     const tag = await vscode.window.showInputBox({ prompt: "Tag name" });
-    if (!tag) return;
+    if (!tag) {return;}
 
     const validation = validateTagName(tag);
     if (!validation.valid) {
@@ -459,7 +459,7 @@ export function activate(context: vscode.ExtensionContext) {
     const tag = await vscode.window.showInputBox({
       prompt: "Tag name to delete",
     });
-    if (!tag) return;
+    if (!tag) {return;}
 
     const validation = validateTagName(tag);
     if (!validation.valid) {
@@ -478,7 +478,7 @@ export function activate(context: vscode.ExtensionContext) {
       prompt: "Remote name",
       value: "origin",
     });
-    if (!name) return;
+    if (!name) {return;}
 
     const nameValidation = validateRemoteName(name);
     if (!nameValidation.valid) {
@@ -487,7 +487,7 @@ export function activate(context: vscode.ExtensionContext) {
     }
 
     const url = await vscode.window.showInputBox({ prompt: "Remote URL" });
-    if (!url) return;
+    if (!url) {return;}
 
     const urlValidation = validateRemoteURL(url);
     if (!urlValidation.valid) {
@@ -505,7 +505,7 @@ export function activate(context: vscode.ExtensionContext) {
     const name = await vscode.window.showInputBox({
       prompt: "Remote name to delete",
     });
-    if (!name) return;
+    if (!name) {return;}
 
     const validation = validateRemoteName(name);
     if (!validation.valid) {

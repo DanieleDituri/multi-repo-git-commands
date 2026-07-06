@@ -347,7 +347,7 @@ export class GitClient {
       const git = simpleGit(repoPath);
       const res = await this.withTimeout(git.raw(args));
 
-      if (res) this.output.append(res);
+      if (res) {this.output.append(res);}
       this.logOperation(repoName, "Custom Git", "success");
       return { success: true, message: "Command executed" };
     } catch (e: any) {
