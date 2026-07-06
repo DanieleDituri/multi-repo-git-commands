@@ -1,7 +1,81 @@
-out
-dist
-node_modules
-.vscode-test/
-*.vsix
+# Build outputs
+out/
+dist/
+build/
+*.tsbuildinfo
+
+# Dependencies
+node_modules/
+package-lock.json
+yarn.lock
+.pnp
+.pnp.js
+
+# VS Code
 .vscode/
+.vscode-test/
+*.code-workspace
 .history/
+
+# IDE & Editor
+.idea/
+.DS_Store
+.env.local
+.env.*.local
+*.swp
+*.swo
+*~
+.project
+.classpath
+*.sublime-project
+*.sublime-workspace
+
+# Testing
+coverage/
+.nyc_output/
+*.lcov
+.mocha-timeout
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Extension files
+*.vsix
+esbuild.metafile.json
+
+# OS
+Thumbs.db
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Temporary files
+.tmp/
+*.bak
+*.backup
+*.temp
+tmp/
+
+# Analysis outputs (temporary)
+*.analysis.json
+.analysis-tmp/
+
+# Local development
+.claude/
+*.local.json
+.env
+.env.local
+
+# Build artifacts
+tsconfig.tsbuildinfo

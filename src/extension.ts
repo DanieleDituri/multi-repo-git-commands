@@ -3,6 +3,15 @@ import * as path from "node:path";
 import { simpleGit, SimpleGit } from "simple-git";
 import { getAllGitRepos } from "./repoDiscovery";
 import { MultiRepoViewProvider } from "./multiRepoViewProvider";
+import {
+  validateBranchName,
+  validateCommitMessage,
+  validateTagName,
+  validateRemoteName,
+  validateRemoteURL,
+  validateStashMessage,
+  validateCustomGitArgs,
+} from "./validators";
 
 export type RepoInfo = { name: string; path: string };
 
@@ -73,7 +82,13 @@ async function pickOrPromptGitArgs(): Promise<string[] | undefined> {
     if (!custom) {
       return undefined;
     }
-    return custom.trim().split(/\s+/).filter(Boolean);
+    const args = custom.trim().split(/\s+/).filter(Boolean);
+    const validation = validateCustomGitArgs(args);
+    if (!validation.valid) {
+      vscode.window.showErrorMessage(`❌ ${validation.error}`);
+      return undefined;
+    }
+    return args;
   }
   return (choice as GitPick).args;
 }
@@ -84,50 +99,43 @@ export function activate(context: vscode.ExtensionContext) {
 
   // --- Git Extension Integration for Real-time Updates ---
   // Activate git extension asynchronously (non-blocking)
-  const gitExtension = vscode.extensions.getExtension("vscode.git");
-  if (gitExtension && !gitExtension.isActive) {
-    Promise.resolve(gitExtension.activate()).then(() => {
-      try {
-        const gitApi = gitExtension.exports.getAPI(1);
+  const gitExtensionDisposables: vscode.Disposable[] = [];
 
-        const subscribeToRepo = (repo: any) => {
-          // Subscribe to state changes (branch changes, commits, etc.)
-          repo.state.onDidChange(() => {
-            provider.updateRepoState(repo.rootUri.fsPath);
-          });
-        };
-
-        // Subscribe to existing repos
-        gitApi.repositories.forEach(subscribeToRepo);
-
-        // Subscribe to new repos
-        gitApi.onDidOpenRepository(subscribeToRepo);
-      } catch (e) {
-        console.error("Failed to hook into VS Code Git extension:", e);
-      }
-    }).catch(() => {
-      // Ignore activation errors silently
-    });
-  } else if (gitExtension && gitExtension.isActive) {
+  const hookGitExtension = async () => {
     try {
+      const gitExtension = vscode.extensions.getExtension("vscode.git");
+      if (!gitExtension) return;
+
+      if (!gitExtension.isActive) {
+        await gitExtension.activate();
+      }
+
       const gitApi = gitExtension.exports.getAPI(1);
 
       const subscribeToRepo = (repo: any) => {
-        // Subscribe to state changes (branch changes, commits, etc.)
-        repo.state.onDidChange(() => {
+        const listener = repo.state.onDidChange(() => {
           provider.updateRepoState(repo.rootUri.fsPath);
         });
+        gitExtensionDisposables.push(listener);
       };
 
-      // Subscribe to existing repos
       gitApi.repositories.forEach(subscribeToRepo);
 
-      // Subscribe to new repos
-      gitApi.onDidOpenRepository(subscribeToRepo);
+      const repoListener = gitApi.onDidOpenRepository(subscribeToRepo);
+      gitExtensionDisposables.push(repoListener);
     } catch (e) {
       console.error("Failed to hook into VS Code Git extension:", e);
     }
-  }
+  };
+
+  hookGitExtension();
+
+  context.subscriptions.push(
+    new vscode.Disposable(() => {
+      gitExtensionDisposables.forEach(d => d.dispose());
+      gitExtensionDisposables.length = 0;
+    })
+  );
 
   async function getAllRepos(): Promise<RepoInfo[]> {
     const repoPaths = await getAllGitRepos();
@@ -146,13 +154,15 @@ export function activate(context: vscode.ExtensionContext) {
     let repoList = repos;
     repoList ??= await getAllRepos();
     if (repoList.length === 0) {
-      vscode.window.showWarningMessage("No Git repositories found.");
+      vscode.window.showWarningMessage("⚠️ No Git repositories found.");
       return;
     }
 
     output.clear();
-    output.clear();
-    // output.show(true); // Keep background execution
+
+    let successCount = 0;
+    let failureCount = 0;
+    const failedRepos: string[] = [];
 
     await vscode.window.withProgress(
       {
@@ -171,14 +181,33 @@ export function activate(context: vscode.ExtensionContext) {
           try {
             const git = simpleGit(repo.path);
             await action(git, repoName);
+            successCount++;
+            output.appendLine(`✅ ${operationName} completed successfully`);
           } catch (e: any) {
-            output.appendLine(`Error: ${e.message || e}`);
+            failureCount++;
+            failedRepos.push(repoName);
+            const errorMsg = e.message || String(e);
+            output.appendLine(`❌ Error: ${errorMsg}`);
           }
         }
       },
     );
 
-    // treeProvider.refresh();
+    if (failureCount === 0) {
+      vscode.window.showInformationMessage(
+        `✅ ${operationName} completed successfully on ${successCount} repo(s)`
+      );
+    } else if (successCount === 0) {
+      const failedList = failedRepos.join(", ");
+      vscode.window.showErrorMessage(
+        `❌ ${operationName} failed on all ${failureCount} repo(s): ${failedList}. Check Output for details.`
+      );
+    } else {
+      const failedList = failedRepos.join(", ");
+      vscode.window.showWarningMessage(
+        `⚠️ ${operationName}: ${successCount} ✅ ${failureCount} ❌ (${failedList}). Check Output for details.`
+      );
+    }
   }
 
   // --- Command Implementations ---
@@ -191,7 +220,13 @@ export function activate(context: vscode.ExtensionContext) {
       repos,
       async (git, repoName) => {
         const res = await git.raw(args);
-        if (res) output.append(res);
+        if (res) {
+          if (!res.endsWith('\n')) {
+            output.appendLine(res);
+          } else {
+            output.append(res);
+          }
+        }
         output.appendLine(`=== ${repoName} » Done ===`);
       },
     );
@@ -237,6 +272,13 @@ export function activate(context: vscode.ExtensionContext) {
       prompt: "Enter commit message",
     });
     if (!message) return;
+
+    const validation = validateCommitMessage(message);
+    if (!validation.valid) {
+      vscode.window.showErrorMessage(`❌ ${validation.error}`);
+      return;
+    }
+
     await runGitOperation("Commit", repos, async (git) => {
       await git.commit(message);
       output.appendLine(`Committed: "${message}"`);
@@ -259,11 +301,14 @@ export function activate(context: vscode.ExtensionContext) {
 
   const runDiscard = async (repos?: RepoInfo[]) => {
     const confirm = await vscode.window.showWarningMessage(
-      "Discard ALL uncommitted changes? This cannot be undone!",
+      "🚨 Discard ALL uncommitted changes? This cannot be undone!",
       { modal: true },
       "Discard",
     );
-    if (confirm !== "Discard") return;
+    if (confirm !== "Discard") {
+      vscode.window.showInformationMessage("ℹ️ Discard operation cancelled.");
+      return;
+    }
 
     await runGitOperation("Discard Changes", repos, async (git) => {
       await git.reset(["--hard", "HEAD"]);
@@ -276,6 +321,15 @@ export function activate(context: vscode.ExtensionContext) {
     const message = await vscode.window.showInputBox({
       prompt: "Stash message (optional)",
     });
+
+    if (message) {
+      const validation = validateStashMessage(message);
+      if (!validation.valid) {
+        vscode.window.showErrorMessage(`❌ ${validation.error}`);
+        return;
+      }
+    }
+
     await runGitOperation("Stash", repos, async (git) => {
       if (message) {
         await git.stash(["push", "-m", message]);
@@ -354,6 +408,13 @@ export function activate(context: vscode.ExtensionContext) {
       prompt: "New branch name",
     });
     if (!branch) return;
+
+    const validation = validateBranchName(branch);
+    if (!validation.valid) {
+      vscode.window.showErrorMessage(`❌ ${validation.error}`);
+      return;
+    }
+
     await runGitOperation(`Create Branch ${branch}`, repos, async (git) => {
       await git.checkoutLocalBranch(branch);
       output.appendLine(`Created and checked out ${branch}.`);
@@ -365,8 +426,15 @@ export function activate(context: vscode.ExtensionContext) {
       prompt: "Branch name to delete",
     });
     if (!branch) return;
+
+    const validation = validateBranchName(branch);
+    if (!validation.valid) {
+      vscode.window.showErrorMessage(`❌ ${validation.error}`);
+      return;
+    }
+
     await runGitOperation(`Delete Branch ${branch}`, repos, async (git) => {
-      await git.deleteLocalBranch(branch, true); // force delete
+      await git.deleteLocalBranch(branch, true);
       output.appendLine(`Deleted branch ${branch}.`);
     });
   };
@@ -374,6 +442,13 @@ export function activate(context: vscode.ExtensionContext) {
   const runCreateTag = async (repos?: RepoInfo[]) => {
     const tag = await vscode.window.showInputBox({ prompt: "Tag name" });
     if (!tag) return;
+
+    const validation = validateTagName(tag);
+    if (!validation.valid) {
+      vscode.window.showErrorMessage(`❌ ${validation.error}`);
+      return;
+    }
+
     await runGitOperation(`Create Tag ${tag}`, repos, async (git) => {
       await git.addTag(tag);
       output.appendLine(`Created tag ${tag}.`);
@@ -385,6 +460,13 @@ export function activate(context: vscode.ExtensionContext) {
       prompt: "Tag name to delete",
     });
     if (!tag) return;
+
+    const validation = validateTagName(tag);
+    if (!validation.valid) {
+      vscode.window.showErrorMessage(`❌ ${validation.error}`);
+      return;
+    }
+
     await runGitOperation(`Delete Tag ${tag}`, repos, async (git) => {
       await git.tag(["-d", tag]);
       output.appendLine(`Deleted tag ${tag}.`);
@@ -397,8 +479,22 @@ export function activate(context: vscode.ExtensionContext) {
       value: "origin",
     });
     if (!name) return;
+
+    const nameValidation = validateRemoteName(name);
+    if (!nameValidation.valid) {
+      vscode.window.showErrorMessage(`❌ ${nameValidation.error}`);
+      return;
+    }
+
     const url = await vscode.window.showInputBox({ prompt: "Remote URL" });
     if (!url) return;
+
+    const urlValidation = validateRemoteURL(url);
+    if (!urlValidation.valid) {
+      vscode.window.showErrorMessage(`❌ ${urlValidation.error}`);
+      return;
+    }
+
     await runGitOperation(`Add Remote ${name}`, repos, async (git) => {
       await git.addRemote(name, url);
       output.appendLine(`Added remote ${name}.`);
@@ -410,6 +506,13 @@ export function activate(context: vscode.ExtensionContext) {
       prompt: "Remote name to delete",
     });
     if (!name) return;
+
+    const validation = validateRemoteName(name);
+    if (!validation.valid) {
+      vscode.window.showErrorMessage(`❌ ${validation.error}`);
+      return;
+    }
+
     await runGitOperation(`Delete Remote ${name}`, repos, async (git) => {
       await git.removeRemote(name);
       output.appendLine(`Deleted remote ${name}.`);
@@ -418,20 +521,26 @@ export function activate(context: vscode.ExtensionContext) {
 
   const runResetWorkspace = async (repos?: RepoInfo[]) => {
     const confirm = await vscode.window.showWarningMessage(
-      "Reset workspace? This will discard all changes, fetch and pull. This cannot be undone!",
+      "🚨 Reset workspace? This will discard all changes, fetch and pull. This cannot be undone!",
       { modal: true },
       "Reset",
     );
-    if (confirm !== "Reset") return;
+    if (confirm !== "Reset") {
+      vscode.window.showInformationMessage("ℹ️ Reset operation cancelled.");
+      return;
+    }
 
     let repoList = repos;
     repoList ??= await getAllRepos();
     if (repoList.length === 0) {
-      vscode.window.showWarningMessage("No Git repositories found.");
+      vscode.window.showWarningMessage("⚠️ No Git repositories found.");
       return;
     }
 
     output.clear();
+
+    let successCount = 0;
+    let failureCount = 0;
 
     await vscode.window.withProgress(
       {
@@ -450,106 +559,48 @@ export function activate(context: vscode.ExtensionContext) {
           try {
             const git = simpleGit(repo.path);
 
-            // Step 1: Discard
             output.appendLine("Discarding changes...");
             await git.reset(["--hard", "HEAD"]);
             await git.clean("f", ["-d"]);
-            output.appendLine("✓ Changes discarded");
+            output.appendLine("✅ Changes discarded");
 
-            // Step 2: Fetch
             output.appendLine("Fetching...");
             await git.fetch(["--all", "--prune"]);
-            output.appendLine("✓ Fetch completed");
+            output.appendLine("✅ Fetch completed");
 
-            // Step 3: Pull
             output.appendLine("Pulling...");
             await git.pull(undefined, undefined, { "--rebase": null });
-            output.appendLine("✓ Pull completed");
+            output.appendLine("✅ Pull completed");
 
-            output.appendLine(`=== ${repoName} » Done ===`);
+            output.appendLine(`=== ${repoName} » Reset completed ===`);
+            successCount++;
           } catch (e: any) {
-            output.appendLine(`Error: ${e.message || e}`);
+            failureCount++;
+            const errorMsg = e.message || String(e);
+            output.appendLine(`❌ Error: ${errorMsg}`);
           }
         }
       },
     );
+
+    if (failureCount === 0) {
+      vscode.window.showInformationMessage(
+        `✅ Reset completed successfully on ${successCount} repo(s)`
+      );
+    } else if (successCount === 0) {
+      vscode.window.showErrorMessage(
+        `❌ Reset failed on all ${failureCount} repo(s). Check Output for details.`
+      );
+    } else {
+      vscode.window.showWarningMessage(
+        `⚠️ Reset: ${successCount} succeeded, ${failureCount} failed. Check Output for details.`
+      );
+    }
   };
 
-  // --- Registration ---
+  // --- Registration (Centralized) ---
 
-  // General / All
-  context.subscriptions.push(
-    vscode.commands.registerCommand("multi-repo-git-commands.runGitAll", () =>
-      runCustom(),
-    ),
-    vscode.commands.registerCommand(
-      "multi-repo-git-commands.runCustomGitAll",
-      () => runCustom(),
-    ),
-    vscode.commands.registerCommand("multi-repo-git-commands.statusAll", () =>
-      runStatus(),
-    ),
-    vscode.commands.registerCommand("multi-repo-git-commands.fetchAll", () =>
-      runFetch(),
-    ),
-    vscode.commands.registerCommand("multi-repo-git-commands.pullAll", () =>
-      runPull(),
-    ),
-    vscode.commands.registerCommand("multi-repo-git-commands.pushAll", () =>
-      runPush(),
-    ),
-    vscode.commands.registerCommand("multi-repo-git-commands.commitAll", () =>
-      runCommit(),
-    ),
-    vscode.commands.registerCommand("multi-repo-git-commands.stageAll", () =>
-      runStageAll(),
-    ),
-    vscode.commands.registerCommand("multi-repo-git-commands.unstageAll", () =>
-      runUnstageAll(),
-    ),
-    vscode.commands.registerCommand("multi-repo-git-commands.discardAll", () =>
-      runDiscard(),
-    ),
-    vscode.commands.registerCommand("multi-repo-git-commands.stashAll", () =>
-      runStash(),
-    ),
-    vscode.commands.registerCommand("multi-repo-git-commands.popStashAll", () =>
-      runPopStash(),
-    ),
-    vscode.commands.registerCommand("multi-repo-git-commands.checkoutAll", () =>
-      runCheckout(),
-    ),
-    vscode.commands.registerCommand(
-      "multi-repo-git-commands.createBranchAll",
-      () => runCreateBranch(),
-    ),
-    vscode.commands.registerCommand(
-      "multi-repo-git-commands.deleteBranchAll",
-      () => runDeleteBranch(),
-    ),
-    vscode.commands.registerCommand(
-      "multi-repo-git-commands.createTagAll",
-      () => runCreateTag(),
-    ),
-    vscode.commands.registerCommand(
-      "multi-repo-git-commands.deleteTagAll",
-      () => runDeleteTag(),
-    ),
-    vscode.commands.registerCommand(
-      "multi-repo-git-commands.createRemoteAll",
-      () => runCreateRemote(),
-    ),
-    vscode.commands.registerCommand(
-      "multi-repo-git-commands.deleteRemoteAll",
-      () => runDeleteRemote(),
-    ),
-    vscode.commands.registerCommand(
-      "multi-repo-git-commands.resetWorkspace",
-      () => runResetWorkspace(),
-    ),
-  );
-
-  // Single Repo (SCM Context Menu)
+  // Handler map: command ID → implementation
   const singleRepoWrapper =
     (fn: (repos?: RepoInfo[]) => Promise<void>) =>
     async (item: vscode.SourceControl) => {
@@ -562,6 +613,37 @@ export function activate(context: vscode.ExtensionContext) {
       }
     };
 
+  const commandHandlers: Record<string, () => Promise<void>> = {
+    "multi-repo-git-commands.runGitAll": () => runCustom(),
+    "multi-repo-git-commands.runCustomGitAll": () => runCustom(),
+    "multi-repo-git-commands.statusAll": () => runStatus(),
+    "multi-repo-git-commands.fetchAll": () => runFetch(),
+    "multi-repo-git-commands.pullAll": () => runPull(),
+    "multi-repo-git-commands.pushAll": () => runPush(),
+    "multi-repo-git-commands.commitAll": () => runCommit(),
+    "multi-repo-git-commands.stageAll": () => runStageAll(),
+    "multi-repo-git-commands.unstageAll": () => runUnstageAll(),
+    "multi-repo-git-commands.discardAll": () => runDiscard(),
+    "multi-repo-git-commands.stashAll": () => runStash(),
+    "multi-repo-git-commands.popStashAll": () => runPopStash(),
+    "multi-repo-git-commands.checkoutAll": () => runCheckout(),
+    "multi-repo-git-commands.createBranchAll": () => runCreateBranch(),
+    "multi-repo-git-commands.deleteBranchAll": () => runDeleteBranch(),
+    "multi-repo-git-commands.createTagAll": () => runCreateTag(),
+    "multi-repo-git-commands.deleteTagAll": () => runDeleteTag(),
+    "multi-repo-git-commands.createRemoteAll": () => runCreateRemote(),
+    "multi-repo-git-commands.deleteRemoteAll": () => runDeleteRemote(),
+    "multi-repo-git-commands.resetWorkspace": () => runResetWorkspace(),
+  };
+
+  // Register all commands
+  for (const [cmdId, handler] of Object.entries(commandHandlers)) {
+    context.subscriptions.push(
+      vscode.commands.registerCommand(cmdId, handler)
+    );
+  }
+
+  // Single Repo (SCM Context Menu)
   context.subscriptions.push(
     vscode.commands.registerCommand(
       "multi-repo-git-commands.customRepo",
